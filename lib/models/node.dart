@@ -1,10 +1,12 @@
 import 'package:fractal/lib.dart';
 import 'package:signed_fractal/models/event.dart';
 import '../controllers/node.dart';
+import '../security/generator/random_key_pair_generator.dart';
 import '../security/key_pair.dart';
 import '../services/signer.dart';
+import 'rewriter.dart';
 
-class NodeFractal extends EventFractal {
+class NodeFractal extends EventFractal implements Rewritable {
   static final controller = NodeCtrl(
     extend: EventFractal.controller,
     make: (d) => switch (d) {
@@ -17,29 +19,22 @@ class NodeFractal extends EventFractal {
   NodeCtrl get ctrl => controller;
 
   NodeFractal({
-    super.id,
-    super.hash,
-    super.pubkey,
-    super.createdAt,
-    super.syncAt,
     super.expiresAt,
     super.kind,
     super.content,
     super.file,
-    super.sig,
-    super.name,
     super.to,
-    this.keyPair,
-  });
+    KeyPair? keyPair,
+  }) {
+    this.keyPair = keyPair ?? RandomKeyPairGenerator().generate();
+  }
 
-  final KeyPair? keyPair;
+  late final KeyPair keyPair;
   static final signer = Signer();
-  String sign(String text) => keyPair != null
-      ? signer.sign(
-          privateKey: keyPair!.privateKey,
-          message: text,
-        )
-      : '';
+  String sign(String text) => signer.sign(
+        privateKey: keyPair.privateKey,
+        message: text,
+      );
 
   @override
   get hashData => [...super.hashData];
@@ -52,8 +47,8 @@ class NodeFractal extends EventFractal {
         super.fromMap(d);
 
   MP get _map => {
-        'public_key': keyPair!.publicKey,
-        'private_key': keyPair!.privateKey,
+        'public_key': keyPair.publicKey,
+        'private_key': keyPair.privateKey,
       };
 
   @override
@@ -61,4 +56,14 @@ class NodeFractal extends EventFractal {
         ...super.toMap(),
         ..._map,
       };
+
+  final title = Writable();
+
+  @override
+  onWrite(f) {
+    switch (f.attr) {
+      case 'title':
+        title.value = f;
+    }
+  }
 }

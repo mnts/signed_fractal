@@ -1,11 +1,16 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:fractal/lib.dart';
 import 'package:fractal/types/file.dart';
 import '../controllers/events.dart';
 import 'package:convert/convert.dart';
+import 'package:dart_bs58check/dart_bs58check.dart';
+
+import '../security/key_pair.dart';
+import 'user.dart';
 
 class EventFractal extends Fractal {
   static final controller = EventsCtrl(
@@ -16,18 +21,17 @@ class EventFractal extends Fractal {
     },
   );
   @override
-  FractalCtrl get ctrl => controller;
+  EventsCtrl get ctrl => controller;
 
   bool get dontStore => false;
 
   String hash = '';
-  final String pubkey;
+  late final String pubkey;
   int createdAt = 0;
   final int syncAt;
   final int expiresAt;
   final int kind;
   final String content;
-  final String name;
   String sig = '';
   FileF? file;
 
@@ -46,14 +50,15 @@ class EventFractal extends Fractal {
   }
 
   final tags = <List<String>>[];
-  List get hashData => [0, pubkey, createdAt, type, content];
+  List get hashData => [0, pubkey, createdAt, type, content, ctrl.name];
 
   makeHash() {
     String serializedEvent = json.encode(hashData);
-    print('generate hash for $type');
-    print(serializedEvent);
-    List<int> h = sha256.convert(utf8.encode(serializedEvent)).bytes;
-    return hex.encode(h);
+    final h = Uint8List.fromList([
+      kind,
+      ...sha256.convert(utf8.encode(serializedEvent)).bytes,
+    ]);
+    return bs58check.encode(h);
   }
 
   EventFractal? to;
@@ -61,7 +66,7 @@ class EventFractal extends Fractal {
   EventFractal({
     super.id,
     this.hash = '',
-    this.pubkey = 'user pub key',
+    String? pubkey,
     int createdAt = 0,
     this.syncAt = 0,
     this.expiresAt = 0,
@@ -69,13 +74,16 @@ class EventFractal extends Fractal {
     this.content = '',
     this.file,
     this.sig = '',
-    this.name = '',
     this.to,
   }) {
+    this.pubkey = pubkey ?? _myKeyPair?.publicKey ?? '';
     if (createdAt == 0) this.createdAt = unixSeconds;
     if (hash.isNotEmpty) map[hash] = this;
     if (to != null) _consume(to!);
   }
+
+  KeyPair? get _myKeyPair => UserFractal.active.value?.keyPair;
+  bool get own => _myKeyPair != null && pubkey == _myKeyPair!.publicKey;
 
   @override
   MP toMap() => {
@@ -93,9 +101,8 @@ class EventFractal extends Fractal {
         'content': content,
         'file': file?.name ?? '',
         'sig': sig,
-        'name': sig,
         'pid': sig,
-        'to': toHash ?? to?.hash ?? '',
+        'to': to?.hash ?? toHash ?? '',
       };
 
   String? toHash;
@@ -109,14 +116,13 @@ class EventFractal extends Fractal {
         expiresAt = d['expires_at'] ?? 0,
         sig = d['sig'] ?? '',
         kind = 1,
-        name = d['name'] ?? '',
         super(id: d['id']) {
     if (d case {'file': String fileHash}) {
       file = FileF(fileHash);
     }
 
     if (d case {'to': String toHash}) {
-      toHash = toHash;
+      this.toHash = toHash;
       request(toHash).then(_consume);
     }
     complete();
@@ -142,13 +148,21 @@ class EventFractal extends Fractal {
   }
 
   _consume(EventFractal into) {
+    to = into;
+
     provide(into);
     into.consume(this);
   }
 
-  consume(EventFractal event) {}
+  consume(EventFractal event) {
+    print('consume');
+    print(event);
+  }
 
-  provide(EventFractal event) {}
+  provide(EventFractal into) {
+    print('provide');
+    print(into);
+  }
 
   static final map = <String, EventFractal>{};
   static final _requests = HashMap<String, List<Completer<EventFractal>>>();
@@ -194,7 +208,7 @@ class EventFractal extends Fractal {
   final sharedWith = <String>[];
   void complete() {
     if (hash.isEmpty) hash = makeHash();
-
+    //sig = UserFractal.active.value?.sign(hash) ?? '';
     map[hash] = this;
     final rqs = _requests[hash];
     if (rqs == null) return;
@@ -203,5 +217,6 @@ class EventFractal extends Fractal {
       notifyListeners();
     }
     rqs.clear();
+    ctrl.consume(this);
   }
 }

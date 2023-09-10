@@ -21,7 +21,6 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FMap<T> {
       Attr('file', String),
       Attr('sig', String),
       Attr('pid', String),
-      Attr('name', String),
       Attr('to', String),
       Attr('sync_at', int),
       Attr('created_at', int),
@@ -43,6 +42,17 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FMap<T> {
       preload(res);
     } catch (e) {
       print(e);
+    }
+  }
+
+  final _consumers = <Function(T)>[];
+  consumer(Function(T) cb) {
+    _consumers.add(cb);
+  }
+
+  consume(T event) {
+    for (var c in _consumers) {
+      c(event);
     }
   }
 

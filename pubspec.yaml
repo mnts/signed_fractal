@@ -18,6 +18,7 @@ dependencies:
   bip340: ^0.2.0
   crypto: ^3.0.3
   json_annotation: ^4.8.1
+  dart_bs58check: ^3.0.2
   # path: ^1.8.0
 
 dev_dependencies:

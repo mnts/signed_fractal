@@ -9,13 +9,19 @@ class UserCtrl<T extends UserFractal> extends NodeCtrl<T> {
     required super.extend,
     super.attributes = const [
       Attr(
-        'public_key',
+        'eth',
         String,
+        canNull: true,
       ),
       Attr(
-        'private_key',
+        'name',
         String,
-        isPrivate: true,
+        canNull: true,
+        isUnique: true,
+      ),
+      Attr(
+        'pass',
+        String,
       ),
     ],
   });
