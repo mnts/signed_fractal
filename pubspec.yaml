@@ -14,11 +14,20 @@ dependencies:
     path: ../fractal_base
   fractal:
     path: ../fractal
+  app_fractal:
+    path: ../app_fractal
+  fractals2d:
+    path: ../fractals2d
+    
+  axi:
+    path: ../axi
   pointycastle: ^3.7.3
+  sqlite3_flutter_libs:
   bip340: ^0.2.0
   crypto: ^3.0.3
   json_annotation: ^4.8.1
   dart_bs58check: ^3.0.2
+  dart_console: ^1.2.0
   # path: ^1.8.0
 
 dev_dependencies:

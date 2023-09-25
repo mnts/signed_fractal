@@ -10,6 +10,7 @@ import 'package:convert/convert.dart';
 import 'package:dart_bs58check/dart_bs58check.dart';
 
 import '../security/key_pair.dart';
+import '../services/map.dart';
 import 'user.dart';
 
 class EventFractal extends Fractal {
@@ -20,6 +21,9 @@ class EventFractal extends Fractal {
       null || Object() => throw ('wrong event type')
     },
   );
+
+  static final map = MapF();
+
   @override
   EventsCtrl get ctrl => controller;
 
@@ -45,11 +49,7 @@ class EventFractal extends Fractal {
 
   //static late final user = UserNostr();
 
-  static Map<String, dynamic> _make(Map<String, dynamic> m) {
-    return map;
-  }
-
-  final tags = <List<String>>[];
+  //final tags = <List<String>>[];
   List get hashData => [0, pubkey, createdAt, type, content, ctrl.name];
 
   makeHash() {
@@ -61,6 +61,8 @@ class EventFractal extends Fractal {
     return bs58check.encode(h);
   }
 
+  move() {}
+
   EventFractal? to;
 
   EventFractal({
@@ -71,6 +73,7 @@ class EventFractal extends Fractal {
     this.syncAt = 0,
     this.expiresAt = 0,
     this.kind = 1,
+    this.owner,
     this.content = '',
     this.file,
     this.sig = '',
@@ -78,8 +81,13 @@ class EventFractal extends Fractal {
   }) {
     this.pubkey = pubkey ?? _myKeyPair?.publicKey ?? '';
     if (createdAt == 0) this.createdAt = unixSeconds;
-    if (hash.isNotEmpty) map[hash] = this;
-    if (to != null) _consume(to!);
+    owner = UserFractal.active.value;
+    if (to != null) {
+      toHash = to!.hash;
+      _consume(to!);
+    }
+
+    ownerC.complete();
   }
 
   KeyPair? get _myKeyPair => UserFractal.active.value?.keyPair;
@@ -91,9 +99,14 @@ class EventFractal extends Fractal {
         ..._map,
       };
 
+  UserFractal? owner;
+
+  final ownerC = Completer();
+
   MP get _map => {
         'hash': hash,
         'pubkey': pubkey,
+        'owner': owner?.hash ?? UserFractal.active.value?.hash,
         'created_at': createdAt,
         'sync_at': syncAt,
         'expires_at': expiresAt,
@@ -118,12 +131,23 @@ class EventFractal extends Fractal {
         kind = 1,
         super(id: d['id']) {
     if (d case {'file': String fileHash}) {
-      file = FileF(fileHash);
+      if (fileHash.isNotEmpty) file = FileF(fileHash);
+    }
+
+    if (d case {'owner': String userHash}) {
+      if (userHash.isNotEmpty) {
+        map.request(userHash).then((user) {
+          if (user is UserFractal) {
+            owner = user;
+            ownerC.complete();
+          }
+        });
+      }
     }
 
     if (d case {'to': String toHash}) {
       this.toHash = toHash;
-      request(toHash).then(_consume);
+      map.request(toHash).then(_consume);
     }
     complete();
   }
@@ -155,29 +179,17 @@ class EventFractal extends Fractal {
   }
 
   consume(EventFractal event) {
+    /*
     print('consume');
     print(event);
+    */
   }
 
   provide(EventFractal into) {
+    /*
     print('provide');
     print(into);
-  }
-
-  static final map = <String, EventFractal>{};
-  static final _requests = HashMap<String, List<Completer<EventFractal>>>();
-  static Future<EventFractal> request(String hash) {
-    final comp = Completer<EventFractal>();
-    if (map.containsKey(hash)) {
-      comp.complete(map[hash]);
-    } else {
-      if (_requests.containsKey(hash)) {
-        _requests[hash]!.add(comp);
-      } else {
-        _requests[hash] = [comp];
-      }
-    }
-    return comp.future;
+    */
   }
 
   String get url => hash;
@@ -185,8 +197,7 @@ class EventFractal extends Fractal {
   int idEvent = 0;
   @override
   synch() {
-    print('synch event ');
-    if (map.containsKey(hash) && EventFractal.map.containsKey(hash)) {
+    if (map.containsKey(hash)) {
       distribute();
       return 0;
     }
@@ -208,15 +219,8 @@ class EventFractal extends Fractal {
   final sharedWith = <String>[];
   void complete() {
     if (hash.isEmpty) hash = makeHash();
-    //sig = UserFractal.active.value?.sign(hash) ?? '';
     map[hash] = this;
-    final rqs = _requests[hash];
-    if (rqs == null) return;
-    for (final rq in rqs) {
-      rq.complete(this);
-      notifyListeners();
-    }
-    rqs.clear();
+    //sig = UserFractal.active.value?.sign(hash) ?? '';
     ctrl.consume(this);
   }
 }

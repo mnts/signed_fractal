@@ -3,8 +3,9 @@ import 'package:fractal/lib.dart';
 import 'package:fractal_base/extensions/sql.dart';
 import 'package:fractal_base/models/index.dart';
 import '../models/event.dart';
+import '../services/map.dart';
 
-class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FMap<T> {
+class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> {
   EventsCtrl({
     super.name = 'event',
     required super.make,
@@ -17,6 +18,11 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FMap<T> {
         isUnique: true,
       ),
       Attr('content', int),
+      Attr(
+        'owner',
+        String,
+        canNull: true,
+      ),
       Attr('pubkey', String),
       Attr('file', String),
       Attr('sig', String),
@@ -28,6 +34,11 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FMap<T> {
     ],
   });
 
+  @override
+  final icon = IconF(0xe22d);
+
+  final map = MapF<T>();
+
   List<T> find(MP m) {
     final list = <T>[...map.values];
     if (m case {'since': int time}) {
@@ -36,13 +47,31 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FMap<T> {
     return list;
   }
 
-  collect() {
-    try {
-      final res = select();
-      preload(res);
-    } catch (e) {
-      print(e);
+  bool dontNotify = false;
+
+  Iterable<T> preload(Iterable json) {
+    dontNotify = true;
+    final re = <T>[];
+    for (MP item in json) {
+      if (item['id'] is int && !Fractal.map.containsKey(item['id'])) {
+        final fractal = put(item);
+        re.add(fractal);
+      }
     }
+    dontNotify = false;
+    return re;
+  }
+
+  T put(MP item) {
+    final pass = item['pass'];
+    final fractal = make(item);
+    map.complete(fractal.hash, fractal);
+    return fractal;
+  }
+
+  collect() {
+    final res = select();
+    preload(res);
   }
 
   final _consumers = <Function(T)>[];

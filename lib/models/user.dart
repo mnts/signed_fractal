@@ -7,6 +7,8 @@ import 'package:fractal/types/file.dart';
 import 'package:signed_fractal/models/rewriter.dart';
 import 'package:signed_fractal/signed_fractal.dart';
 
+import '../services/map.dart';
+
 class UserFractal extends NodeFractal implements Rewritable {
   static final active = Frac<UserFractal?>(null);
 
@@ -21,12 +23,12 @@ class UserFractal extends NodeFractal implements Rewritable {
   @override
   UserCtrl get ctrl => controller;
 
-  String? name;
   String? eth;
   String? pass;
 
+  static final map = MapF<UserFractal>();
+
   UserFractal({
-    required this.name,
     this.eth,
     super.expiresAt,
     super.kind,
@@ -35,10 +37,12 @@ class UserFractal extends NodeFractal implements Rewritable {
     super.to,
     super.keyPair,
     String? password,
+    required super.name,
   }) {
     if (password != null) {
       pass = makePass(password);
     }
+    map.complete(name, this);
   }
 
   String makePass(String word) {
@@ -52,6 +56,11 @@ class UserFractal extends NodeFractal implements Rewritable {
   static activate(UserFractal user) {
     UserFractal.active.value = user;
     DBF.main['active'] = user.hash;
+  }
+
+  static logOut() {
+    UserFractal.active.value = null;
+    DBF.main['active'] = '';
   }
 
   bool auth(String password) {
@@ -82,11 +91,12 @@ class UserFractal extends NodeFractal implements Rewritable {
   static late final activeHash = DBF.main['active'];
 
   UserFractal.fromMap(MP d)
-      : name = d['name'],
-        eth = d['eth'],
+      : eth = d['eth'],
         pass = d['pass'],
         super.fromMap(d) {
     if (activeHash != null && activeHash == hash) active.value = this;
+
+    map.complete(name, this);
   }
 
   MP get _map => {
