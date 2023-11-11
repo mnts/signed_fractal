@@ -1,15 +1,11 @@
-import 'package:fractal/lib.dart';
-import 'package:signed_fractal/models/event.dart';
-import 'package:signed_fractal/services/sorted.dart';
-import '../controllers/node.dart';
-import '../security/generator/random_key_pair_generator.dart';
-import '../security/key_pair.dart';
-import '../services/map.dart';
-import '../services/signer.dart';
-import '../signed_fractal.dart';
-import 'rewriter.dart';
+import 'dart:async';
 
-class NodeFractal extends EventFractal implements Rewritable {
+import 'package:app_fractal/index.dart';
+
+import '../security/key_pair.dart';
+import '../signed_fractal.dart';
+
+class NodeFractal extends EventFractal with Rewritable {
   static final controller = NodeCtrl(
     extend: EventFractal.controller,
     make: (d) => switch (d) {
@@ -19,25 +15,37 @@ class NodeFractal extends EventFractal implements Rewritable {
     },
   );
 
+  static final flow = TypeFilter<NodeFractal>(
+    EventFractal.map,
+  );
+
   final SortedFrac<EventFractal> sorted;
+
+  Timer? sortTimer;
   sort() {
-    write('sorted', sorted.toString());
+    sortTimer?.cancel();
+    sortTimer = Timer(const Duration(seconds: 2), () {
+      write('sorted', sorted.toString());
+      sortTimer = null;
+    });
   }
+
+  @override
+  String get path => '/${ctrl.name}/$name';
 
   @override
   NodeCtrl get ctrl => controller;
 
   NodeFractal({
-    super.expiresAt,
-    super.kind,
-    super.content,
-    super.file,
     super.to,
     required this.name,
+    NodeFractal? extend,
     KeyPair? keyPair,
     List<EventFractal>? sub,
   }) : sorted = SortedFrac(sub ?? []) {
-    this.keyPair = keyPair ?? RandomKeyPairGenerator().generate();
+    if (extend != null) {
+      this.extend = extend;
+    }
     construct();
   }
 
@@ -48,28 +56,28 @@ class NodeFractal extends EventFractal implements Rewritable {
     if (event case NodeFractal node) {
       sub.complete(node.name, node);
     }
+    super.consume(event);
+    if (state == StateF.removed) {
+      if (to case NodeFractal container) {
+        container.sub.notify(this);
+      }
+    }
+  }
+
+  NodeFractal require(String name) {
+    final node = sub[name] ?? (NodeFractal(name: name, to: this)..synch());
+    return node;
   }
 
   final sub = MapF<NodeFractal>();
 
   String name;
 
-  late final KeyPair keyPair;
-  static final signer = Signer();
-  String sign(String text) => signer.sign(
-        privateKey: keyPair.privateKey,
-        message: text,
-      );
-
   @override
-  get hashData => [...super.hashData];
+  get hashData => [...super.hashData, name];
 
   NodeFractal.fromMap(MP d)
-      : keyPair = KeyPair(
-          publicKey: d['public_key'],
-          privateKey: d['private_key'],
-        ),
-        name = d['name'] ?? '',
+      : name = d['name'],
         sorted = SortedFrac([])
           ..fromString(
             d['sub'],
@@ -79,9 +87,8 @@ class NodeFractal extends EventFractal implements Rewritable {
   }
 
   MP get _map => {
-        'public_key': keyPair.publicKey,
-        'private_key': keyPair.privateKey,
         'name': name,
+        'extend': extend?.hash,
       };
 
   @override
@@ -91,6 +98,13 @@ class NodeFractal extends EventFractal implements Rewritable {
       };
 
   final title = Writable();
+  FileF? image;
+  /*
+  FileF? get image => _image ?? extend?.image;
+  set image(FileF? v) {
+    _image = v;
+  }
+  */
 
   @override
   onWrite(f) {
@@ -99,6 +113,11 @@ class NodeFractal extends EventFractal implements Rewritable {
         title.value = f;
       case 'sorted':
         sorted.fromString(f.content);
+      case 'image':
+        image = ImageF(f.content);
+        notifyListeners();
+      default:
+        super.onWrite(f);
     }
   }
 }

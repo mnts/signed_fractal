@@ -18,6 +18,15 @@ class UserCtrl<T extends UserFractal> extends NodeCtrl<T> {
         'pass',
         String,
       ),
+      Attr(
+        'private_key',
+        String,
+        isPrivate: true,
+      ),
+      Attr(
+        'public_key',
+        String,
+      ),
     ],
   });
 

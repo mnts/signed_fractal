@@ -6,30 +6,41 @@ class SortedFrac<T extends EventFractal> extends Frac<List<T>> {
   bool dontNotify = false;
 
   order(T f, [int? pos]) {
-    if (pos == null || value.isEmpty) {
+    value.remove(f);
+    if (pos == null || value.isEmpty || pos > value.length) {
       value.add(f);
     } else {
-      value.remove(f);
       value.insert(pos, f);
     }
+    if (!dontNotify) notifyListeners();
+  }
+
+  remove(T ev) {
+    value.remove(ev);
+    notifyListeners();
   }
 
   int get length => value.length;
 
-  Future<void> fromArray(List<String> list) async {
-    dontNotify = true;
+  void fromArray(List<String> list) {
+    //dontNotify = true;
     value.clear();
     for (var i = 0; i < list.length; i++) {
-      final f = await EventFractal.map.request(list[i]);
-      if (f is T) {
-        order(f, i);
-      }
+      EventFractal.map.request(list[i]).then(
+        (f) {
+          if (f is T) {
+            order(f, i);
+          }
+        },
+      );
     }
+    //dontNotify = false;
   }
 
   fromString(String? s) {
     if (s == null) return;
     fromArray(s.split(','));
+    notifyListeners();
   }
 
   @override

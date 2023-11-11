@@ -3,6 +3,7 @@ import 'package:fractal/lib.dart';
 import 'package:fractal_base/extensions/sql.dart';
 import 'package:fractal_base/models/index.dart';
 import '../models/event.dart';
+import '../models/rewriter.dart';
 import '../services/map.dart';
 
 class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> {
@@ -11,62 +12,56 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> {
     required super.make,
     required super.extend,
     super.attributes = const [
-      Attr('kind', int),
       Attr(
         'hash',
         String,
         isUnique: true,
       ),
-      Attr('content', int),
       Attr(
         'owner',
         String,
         canNull: true,
       ),
       Attr('pubkey', String),
-      Attr('file', String),
       Attr('sig', String),
-      Attr('pid', String),
       Attr('to', String),
       Attr('sync_at', int),
       Attr('created_at', int),
-      Attr('expires_at', int),
     ],
   });
 
   @override
   final icon = IconF(0xe22d);
 
-  final map = MapF<T>();
-
-  List<T> find(MP m) {
+  /*
+  //final map = MapF<T>();
+  List<T> findt(MP m) {
     final list = <T>[...map.values];
     if (m case {'since': int time}) {
       time;
     }
     return list;
   }
+  */
 
   bool dontNotify = false;
 
-  Iterable<T> preload(Iterable json) {
+  void preload(Iterable json) async {
     dontNotify = true;
-    final re = <T>[];
     for (MP item in json) {
       if (item['id'] is int && !Fractal.map.containsKey(item['id'])) {
-        final fractal = put(item);
-        re.add(fractal);
+        put(item);
       }
     }
     dontNotify = false;
-    return re;
   }
 
-  T put(MP item) {
+  Future<T?> put(MP item) async {
     final pass = item['pass'];
-    final fractal = make(item);
-    map.complete(fractal.hash, fractal);
-    return fractal;
+    return Rewritable.ext(
+      item,
+      () async => make(item),
+    );
   }
 
   collect() {
@@ -74,6 +69,7 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> {
     preload(res);
   }
 
+  /*
   final _consumers = <Function(T)>[];
   consumer(Function(T) cb) {
     _consumers.add(cb);
@@ -84,6 +80,7 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> {
       c(event);
     }
   }
+  */
 
   //static final map = <String, EventsCtrl>{};
 

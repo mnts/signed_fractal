@@ -1,13 +1,10 @@
 import 'dart:convert';
-import 'dart:collection';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:dart_bs58check/dart_bs58check.dart';
-import 'package:fractal/types/file.dart';
-import 'package:signed_fractal/models/rewriter.dart';
 import 'package:signed_fractal/signed_fractal.dart';
-
-import '../services/map.dart';
+import '../security/generator/random_key_pair_generator.dart';
+import '../security/key_pair.dart';
 
 class UserFractal extends NodeFractal implements Rewritable {
   static final active = Frac<UserFractal?>(null);
@@ -23,22 +20,28 @@ class UserFractal extends NodeFractal implements Rewritable {
   @override
   UserCtrl get ctrl => controller;
 
+  @override
+  String get path => '/~$name';
+
   String? eth;
   String? pass;
 
   static final map = MapF<UserFractal>();
 
+  late final KeyPair keyPair;
+
+  @override
+  String get pubkey => keyPair.publicKey;
+
   UserFractal({
     this.eth,
-    super.expiresAt,
-    super.kind,
-    super.content,
-    super.file,
     super.to,
     super.keyPair,
     String? password,
     required super.name,
   }) {
+    keyPair = RandomKeyPairGenerator().generate();
+
     if (password != null) {
       pass = makePass(password);
     }
@@ -52,6 +55,12 @@ class UserFractal extends NodeFractal implements Rewritable {
       Uint8List.fromList(b),
     );
   }
+
+  static final signer = Signer();
+  String sign(String text) => signer.sign(
+        privateKey: keyPair.privateKey,
+        message: text,
+      );
 
   static activate(UserFractal user) {
     UserFractal.active.value = user;
@@ -81,7 +90,7 @@ class UserFractal extends NodeFractal implements Rewritable {
   }
 
   static UserFractal byEth(String address) =>
-      controller.map.values.firstWhere((u) => u.eth == address);
+      map.values.firstWhere((u) => u.eth == address);
 
   @override
   get hashData => [
@@ -93,6 +102,10 @@ class UserFractal extends NodeFractal implements Rewritable {
   UserFractal.fromMap(MP d)
       : eth = d['eth'],
         pass = d['pass'],
+        keyPair = KeyPair(
+          publicKey: d['public_key'],
+          privateKey: d['private_key'],
+        ),
         super.fromMap(d) {
     if (activeHash != null && activeHash == hash) active.value = this;
 
@@ -101,7 +114,8 @@ class UserFractal extends NodeFractal implements Rewritable {
 
   MP get _map => {
         'eth': eth,
-        'name': name,
+        'public_key': keyPair.publicKey,
+        'private_key': keyPair.privateKey,
         'pass': pass ?? '',
       };
 

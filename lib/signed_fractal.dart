@@ -5,6 +5,7 @@ import 'models/index.dart';
 export 'models/index.dart';
 export 'mixins/index.dart';
 export 'controllers/index.dart';
+export 'services/index.dart';
 export 'package:fractal/lib.dart';
 export 'package:frac/frac.dart';
 export 'package:fractals2d/models/canvas.dart';
@@ -13,6 +14,7 @@ class SignedFractal {
   static final ctrls = <FractalCtrl>[
     Fractal.controller,
     EventFractal.controller,
+    PostFractal.controller,
     WriterFractal.controller,
     NodeFractal.controller,
     UserFractal.controller,

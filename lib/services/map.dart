@@ -2,12 +2,15 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:axi/flow.dart';
+import 'package:fractal/fractal.dart';
 
 import '../models/index.dart';
 
 class MapF<T extends EventFractal> with FlowF<T> {
   final map = <String, T>{};
   final _requests = HashMap<String, List<Completer<T>>>();
+
+  MapF();
 
   @override
   get list => map.values.toList();
@@ -28,15 +31,34 @@ class MapF<T extends EventFractal> with FlowF<T> {
 
   bool containsKey(String key) => map.containsKey(key);
 
+  @override
+  notify(T fractal) {
+    if (fractal.state == StateF.removed) {
+      cleanUp();
+    }
+    super.notify(fractal);
+  }
+
+  cleanUp() {
+    map.removeWhere((key, f) => f.state == StateF.removed);
+  }
+
   complete(String name, T event) {
-    if (map.containsKey(name)) return;
-    map[name] = event;
+    //if (map.containsKey(name)) return;
+    if (event.state == StateF.removed) {
+      map.remove(name);
+    } else {
+      map[name] = event;
+    }
+
     notify(event);
     final rqs = _requests[name];
     if (rqs == null) return;
-    for (final rq in rqs) {
-      rq.complete(event);
-      event.notifyListeners();
+    if (event.state != StateF.removed) {
+      for (final rq in rqs) {
+        rq.complete(event);
+        event.notifyListeners();
+      }
     }
     rqs.clear();
   }
