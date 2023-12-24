@@ -1,9 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
-
-import 'package:axi/flow.dart';
 import 'package:fractal/fractal.dart';
-
 import '../models/index.dart';
 
 class MapF<T extends EventFractal> with FlowF<T> {
@@ -25,9 +22,12 @@ class MapF<T extends EventFractal> with FlowF<T> {
       } else {
         _requests[hash] = [comp];
       }
+      discover(hash);
     }
     return comp.future;
   }
+
+  discover(String hash) {}
 
   bool containsKey(String key) => map.containsKey(key);
 
@@ -43,12 +43,15 @@ class MapF<T extends EventFractal> with FlowF<T> {
     map.removeWhere((key, f) => f.state == StateF.removed);
   }
 
-  complete(String name, T event) {
-    //if (map.containsKey(name)) return;
+  void complete(String name, T event) {
     if (event.state == StateF.removed) {
       map.remove(name);
     } else {
-      map[name] = event;
+      final current = map[name];
+      if (current == null || current.createdAt < event.createdAt) {
+        map[name] = event;
+      } else
+        return;
     }
 
     notify(event);

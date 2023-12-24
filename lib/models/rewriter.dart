@@ -32,7 +32,7 @@ mixin Rewritable on EventFractal {
     final item = await f;
     if (extended != null && item is NodeFractal) {
       item.extend = extended;
-      //extended.extensions.complete(item.hash, item);
+      extended.extensions.complete(item.hash, item);
       item.notifyListeners();
     }
 

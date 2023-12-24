@@ -46,7 +46,7 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> {
 
   bool dontNotify = false;
 
-  void preload(Iterable json) async {
+  void preload(Iterable json) {
     dontNotify = true;
     for (MP item in json) {
       if (item['id'] is int && !Fractal.map.containsKey(item['id'])) {
@@ -64,8 +64,8 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> {
     );
   }
 
-  collect() {
-    final res = select();
+  collect({Iterable<int>? only}) {
+    final res = select(only: only);
     preload(res);
   }
 
@@ -87,7 +87,7 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> {
   @override
   init() async {
     super.init();
-    collect();
+    //collect();
     //CREATE INDEX acctchng_magnitude ON account_change(acct_no, abs(amt));
   }
 

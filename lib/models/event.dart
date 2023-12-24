@@ -39,7 +39,7 @@ class EventFractal extends Fractal {
   bool get isSaved => hash.isNotEmpty;
 
   @override
-  String get path => '/${ctrl.name}/$hash';
+  String get path => '/-$hash';
 
   signa() {
     if (hash.isEmpty) {
@@ -56,16 +56,17 @@ class EventFractal extends Fractal {
   List get hashData =>
       [0, pubkey, createdAt, toHash ?? to?.hash ?? '', type, ctrl.name];
 
-  makeHash([data]) {
-    data ??= hashData;
+  static String makeHash(hashData) {
     String serializedEvent = json.encode([
-      ...data.map((d) => d ?? ''),
+      ...hashData.map((d) => d ?? ''),
     ]);
     final h = Uint8List.fromList(
       sha256.convert(utf8.encode(serializedEvent)).bytes,
     );
     return bs58check.encode(h);
   }
+
+  static bool isHash(String h) => h.length < 52 && h.length > 48;
 
   move() {}
 
@@ -223,7 +224,9 @@ class EventFractal extends Fractal {
 
   final sharedWith = <String>[];
   void complete() {
-    if (hash.isEmpty) hash = makeHash();
+    if (hash.isEmpty) {
+      hash = makeHash(hashData);
+    }
     if (!map.containsKey(hash)) {
       map.complete(hash, this);
     }

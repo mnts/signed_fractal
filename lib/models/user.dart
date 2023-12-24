@@ -2,11 +2,32 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:dart_bs58check/dart_bs58check.dart';
-import 'package:signed_fractal/signed_fractal.dart';
-import '../security/generator/random_key_pair_generator.dart';
-import '../security/key_pair.dart';
+import '../signed_fractal.dart';
 
-class UserFractal extends NodeFractal implements Rewritable {
+class UserCtrl<T extends UserFractal> extends NodeCtrl<T> {
+  UserCtrl({
+    super.name = 'user',
+    required super.make,
+    required super.extend,
+    super.attributes = const [
+      Attr(
+        'eth',
+        String,
+        canNull: true,
+      ),
+      Attr(
+        'pass',
+        String,
+      ),
+      ...SigningMix.attributes,
+    ],
+  });
+
+  @override
+  final icon = IconF(0xe491);
+}
+
+class UserFractal extends NodeFractal with SigningMix {
   static final active = Frac<UserFractal?>(null);
 
   static final controller = UserCtrl(
@@ -21,7 +42,7 @@ class UserFractal extends NodeFractal implements Rewritable {
   UserCtrl get ctrl => controller;
 
   @override
-  String get path => '/~$name';
+  String get path => '/@$name';
 
   String? eth;
   String? pass;
@@ -31,16 +52,15 @@ class UserFractal extends NodeFractal implements Rewritable {
   late final KeyPair keyPair;
 
   @override
-  String get pubkey => keyPair.publicKey;
-
   UserFractal({
     this.eth,
     super.to,
     super.keyPair,
+    super.extend,
     String? password,
     required super.name,
   }) {
-    keyPair = RandomKeyPairGenerator().generate();
+    signing();
 
     if (password != null) {
       pass = makePass(password);
@@ -48,19 +68,13 @@ class UserFractal extends NodeFractal implements Rewritable {
     map.complete(name, this);
   }
 
-  String makePass(String word) {
+  static String makePass(String word) {
     final b = md5.convert(utf8.encode(word)).bytes;
 
     return bs58check.encode(
       Uint8List.fromList(b),
     );
   }
-
-  static final signer = Signer();
-  String sign(String text) => signer.sign(
-        privateKey: keyPair.privateKey,
-        message: text,
-      );
 
   static activate(UserFractal user) {
     UserFractal.active.value = user;
@@ -102,20 +116,20 @@ class UserFractal extends NodeFractal implements Rewritable {
   UserFractal.fromMap(MP d)
       : eth = d['eth'],
         pass = d['pass'],
-        keyPair = KeyPair(
-          publicKey: d['public_key'],
-          privateKey: d['private_key'],
-        ),
         super.fromMap(d) {
+    signingFromMap(d);
+    if (d['password'] case String password) {
+      pass = makePass(password);
+    }
+
     if (activeHash != null && activeHash == hash) active.value = this;
 
     map.complete(name, this);
   }
 
   MP get _map => {
+        ...signingMap,
         'eth': eth,
-        'public_key': keyPair.publicKey,
-        'private_key': keyPair.privateKey,
         'pass': pass ?? '',
       };
 

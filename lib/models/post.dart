@@ -10,6 +10,7 @@ class PostCtrl<T extends PostFractal> extends EventsCtrl<T> {
     super.attributes = const <Attr>[
       Attr('content', String),
       Attr('file', String),
+      Attr('kind', int, def: '0'),
     ],
   });
 }
@@ -27,22 +28,27 @@ class PostFractal extends EventFractal {
 
   final String content;
   FileF? file;
+  int kind;
 
   PostFractal({
     required this.content,
     this.file,
     super.to,
+    this.kind = 0,
   });
 
   PostFractal.fromMap(MP d)
       : content = '${d['content']}',
+        kind = d['kind'] ?? 0,
         super.fromMap(d) {
     if (d case {'file': String fileHash}) {
       if (fileHash.isNotEmpty) file = FileF(fileHash);
     }
   }
 
-  List get hashData => [...super.hashData, content, file?.name ?? ''];
+  List get hashData {
+    return [...super.hashData, content, file?.name ?? ''];
+  }
 
   @override
   MP toMap() => {

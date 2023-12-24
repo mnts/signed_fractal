@@ -26,13 +26,13 @@ class SortedFrac<T extends EventFractal> extends Frac<List<T>> {
     //dontNotify = true;
     value.clear();
     for (var i = 0; i < list.length; i++) {
-      EventFractal.map.request(list[i]).then(
-        (f) {
-          if (f is T) {
-            order(f, i);
-          }
-        },
-      );
+      final h = list[i];
+      final rq = EventFractal.map.request(h);
+      rq.then((f) {
+        if (f is T) {
+          order(f, i);
+        }
+      });
     }
     //dontNotify = false;
   }
@@ -40,6 +40,11 @@ class SortedFrac<T extends EventFractal> extends Frac<List<T>> {
   fromString(String? s) {
     if (s == null) return;
     fromArray(s.split(','));
+    notifyListeners();
+  }
+
+  add(T f) {
+    value.add(f);
     notifyListeners();
   }
 
