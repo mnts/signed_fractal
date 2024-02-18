@@ -9,11 +9,10 @@ mixin Rewritable on EventFractal {
 
   NodeFractal? extend;
 
-  void onWrite(WriterFractal f) {
-    m.complete(f.attr, f);
-  }
+  bool onWrite(WriterFractal f) => m.complete(f.attr, f);
 
-  Object? operator [](String key) => m[key]?.content ?? extend?[key];
+  Object? operator [](String key) =>
+      m[key]?.content ?? extend?[key] ?? super[key];
 
   static Future<T?> ext<T extends EventFractal>(
     MP d,
@@ -21,7 +20,7 @@ mixin Rewritable on EventFractal {
   ) async {
     NodeFractal? extended;
     if (d['extend'] case String extend) {
-      if (await EventFractal.map.request(extend) case NodeFractal ext) {
+      if (await NetworkFractal.request(extend) case NodeFractal ext) {
         extended = ext;
         d['type'] ??= extended.type;
       }
@@ -58,19 +57,24 @@ class WriterCtrl<T extends WriterFractal> extends PostCtrl<T> {
     super.name = 'writer',
     required super.make,
     required super.extend,
-    super.attributes = const <Attr>[
-      Attr('attr', String),
-    ],
+    required super.attributes,
   });
 }
 
 class WriterFractal extends PostFractal {
   static final controller = WriterCtrl(
-      extend: PostFractal.controller,
-      make: (d) => switch (d) {
-            MP() => WriterFractal.fromMap(d),
-            Object() || null => throw ('wrong rewriter given')
-          });
+    extend: PostFractal.controller,
+    make: (d) => switch (d) {
+      MP() => WriterFractal.fromMap(d),
+      Object() || null => throw ('wrong rewriter given')
+    },
+    attributes: <Attr>[
+      Attr(
+        name: 'attr',
+        format: 'TEXT',
+      ),
+    ],
+  );
 
   @override
   WriterCtrl get ctrl => controller;
@@ -83,12 +87,14 @@ class WriterFractal extends PostFractal {
   });
 
   @override
-  provide(EventFractal into) {
+  provide(Consumable into) {
     if (into case Rewritable re) re.onWrite(this);
   }
 
   @override
   get hashData => [...super.hashData, attr];
+
+  //TODO: make remove old after initiation
 
   @override
   synch() {

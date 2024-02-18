@@ -1,3 +1,5 @@
+import 'package:fractal_base/fractals/device.dart';
+
 import '../controllers/events.dart';
 import '../signed_fractal.dart';
 import 'event.dart';
@@ -9,18 +11,23 @@ class InteractionCtrl<T extends InteractionFractal> extends NodeCtrl<T> {
     required super.extend,
     super.attributes = const <Attr>[],
   });
+
+  @override
+  final icon = IconF(0xf06cc);
 }
 
 mixin InteractiveFractal on EventFractal {
-  InteractionFractal? myInteraction;
+  //InteractionFractal? _myInteraction;
 
   final interactions = MapF<InteractionFractal>();
   interactiveFractal() {}
 
   addInteraction(InteractionFractal f) {
+    /*
     if (f.own) {
-      myInteraction = f;
+      _myInteraction = f;
     }
+    */
 
     f.ownerC.future.then((owner) {
       if (owner == null) return;
@@ -28,15 +35,26 @@ mixin InteractiveFractal on EventFractal {
     });
   }
 
-  InteractionFractal interact() {
-    final user = UserFractal.active.value;
-    if (user == null) throw 'Not signed in';
-    final interaction =
-        interactions.map[user.hash] ?? InteractionFractal(to: this)
-          ..synch();
-    myInteraction = interaction;
+  InteractionFractal get myInteraction {
+    //if (_myInteraction != null) return _myInteraction!;
+    final user = UserFractal.active.value ?? DeviceFractal.my;
+    //if (user == null) throw 'Not signed in';
+    return interactions.map[user.hash] ??
+        InteractionFractal(
+          to: this,
+        );
+    //..synch();
+    //_myInteraction = interaction;
 
-    return interaction;
+    /*
+    final filter = CatalogFractal(
+      filter: {'to': hash},
+    )
+      ..createdAt = 2
+      ..synch();
+    */
+
+    //return interaction;
   }
 }
 
@@ -57,11 +75,12 @@ class InteractionFractal extends NodeFractal {
 
   InteractionFractal({
     super.to,
-  });
+  }) {}
 
   @override
   provide(into) {
     if (into case InteractiveFractal re) re.addInteraction(this);
+    super.provide(into);
   }
 
   InteractionFractal.fromMap(MP d) : super.fromMap(d) {}
@@ -73,9 +92,8 @@ class InteractionFractal extends NodeFractal {
 
   @override
   onWrite(f) {
-    switch (f.attr) {
-      default:
-        super.onWrite(f);
-    }
+    return switch (f.attr) {
+      _ => super.onWrite(f),
+    };
   }
 }

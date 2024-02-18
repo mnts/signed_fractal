@@ -1,5 +1,9 @@
+export 'catalog.dart';
+export 'connection.dart';
 export 'event.dart';
+export 'filter.dart';
 export 'interaction.dart';
+export 'network.dart';
 export 'node.dart';
 export 'post.dart';
 export 'rewriter.dart';

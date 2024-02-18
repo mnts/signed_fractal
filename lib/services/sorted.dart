@@ -27,7 +27,7 @@ class SortedFrac<T extends EventFractal> extends Frac<List<T>> {
     value.clear();
     for (var i = 0; i < list.length; i++) {
       final h = list[i];
-      final rq = EventFractal.map.request(h);
+      final rq = NetworkFractal.request(h);
       rq.then((f) {
         if (f is T) {
           order(f, i);
@@ -39,7 +39,7 @@ class SortedFrac<T extends EventFractal> extends Frac<List<T>> {
 
   fromString(String? s) {
     if (s == null) return;
-    fromArray(s.split(','));
+    final r = fromArray(s.split(','));
     notifyListeners();
   }
 

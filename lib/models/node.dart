@@ -13,7 +13,25 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
       (String s) => NodeFractal(name: s),
       Object() || null => throw ('wrong event type')
     },
+    attributes: [
+      Attr(
+        name: 'sorted',
+        format: 'TEXT',
+        canNull: true,
+      ),
+      Attr(
+        name: 'name',
+        format: 'TEXT',
+      ),
+      Attr(
+        name: 'extend',
+        format: 'TEXT',
+        canNull: true,
+      ),
+    ],
   );
+  @override
+  NodeCtrl get ctrl => controller;
 
   static final flow = TypeFilter<NodeFractal>(
     EventFractal.map,
@@ -32,9 +50,6 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
 
   @override
   //String get path => '/${ctrl.name}/$name';
-
-  @override
-  NodeCtrl get ctrl => controller;
 
   NodeFractal({
     super.to,
@@ -65,7 +80,10 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
   }
 
   NodeFractal require(String name) {
-    final node = sub[name] ?? (NodeFractal(name: name, to: this)..synch());
+    final node = sub[name] ??
+        (NodeFractal(name: name, to: this)
+          ..createdAt = 2
+          ..synch());
     return node;
   }
 
@@ -75,8 +93,8 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
     return [];
   }
 
-  /*List<NodeFractal> */ find() {
-    final tableName = NodeFractal.controller.name;
+  /*List<NodeFractal>  find() {
+    final tableName = ctrl.name;
 
     Iterable resIds = ctrl.db.select("""
 SELECT id_fractal as id FROM $tableName WHERE to = ?
@@ -91,13 +109,14 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
     }
 
     final res = ctrl.select(
-      only: ids,
+      where: {'id': ids},
     );
 
     for (MP item in res) {
       ctrl.put(item);
     }
   }
+  */
 
   String name;
 
@@ -111,6 +130,17 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
             d['sub'],
           ),
         super.fromMap(d) {
+    if (d['extend'] case String ext) {
+      NetworkFractal.request(ext).then((ev) {
+        if (ev case NodeFractal node) {
+          extend = node;
+          node.addListener(() {
+            notifyListeners();
+          });
+          notifyListeners();
+        }
+      });
+    }
     construct();
   }
 
@@ -135,6 +165,14 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
           .toTitleCase();
   final title = Writable();
   FileF? image;
+  FileF? video;
+  String? description;
+
+  @override
+  preload() async {
+    //myInteraction;
+    return super.preload();
+  }
   /*
   FileF? get image => _image ?? extend?.image;
   set image(FileF? v) {
@@ -146,19 +184,36 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
 
   @override
   onWrite(f) {
-    switch (f.attr) {
-      case 'title':
-        title.value = f;
-      case 'tags':
-        (f.content.isEmpty) ? tags.clear() : tags = f.content.split(' ');
-        notifyListeners();
-      case 'sorted':
-        sorted.fromString(f.content);
-      case 'image':
-        image = ImageF(f.content);
-        notifyListeners();
-      default:
-        super.onWrite(f);
+    final ok = super.onWrite(f);
+    if (ok) {
+      switch (f.attr) {
+        case 'title':
+          title.value = f;
+        case 'description':
+          description = f.content;
+          notifyListeners();
+        case 'tags':
+          (f.content.isEmpty) ? tags.clear() : tags = f.content.split(' ');
+          notifyListeners();
+        case 'sorted':
+          sorted.fromString(f.content);
+
+        case 'image':
+          image = ImageF(f.content);
+          notifyListeners();
+        case 'video':
+          video = FileF(f.content);
+          notifyListeners();
+        default:
+          super.onWrite(f);
+      }
     }
+    return ok;
   }
+
+  @override
+  Object? operator [](String key) => switch (key) {
+        'name' => name,
+        _ => super[key],
+      };
 }

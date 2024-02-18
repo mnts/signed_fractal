@@ -6,28 +6,12 @@ import '../models/event.dart';
 import '../models/rewriter.dart';
 import '../services/map.dart';
 
-class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> {
+class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FlowF<T> {
   EventsCtrl({
     super.name = 'event',
     required super.make,
     required super.extend,
-    super.attributes = const [
-      Attr(
-        'hash',
-        String,
-        isUnique: true,
-      ),
-      Attr(
-        'owner',
-        String,
-        canNull: true,
-      ),
-      Attr('pubkey', String),
-      Attr('sig', String),
-      Attr('to', String),
-      Attr('sync_at', int),
-      Attr('created_at', int),
-    ],
+    required super.attributes,
   });
 
   @override
@@ -64,10 +48,14 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> {
     );
   }
 
-  collect({Iterable<int>? only}) {
-    final res = select(only: only);
+  /*
+  collect({required Iterable<int> only}) {
+    final res = select(
+      where: {'id': only},
+    );
     preload(res);
   }
+  */
 
   /*
   final _consumers = <Function(T)>[];

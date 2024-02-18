@@ -9,24 +9,9 @@ class NodeCtrl<T extends NodeFractal> extends EventsCtrl<T> {
     super.name = 'node',
     required super.make,
     required super.extend,
-    super.attributes = const [
-      Attr(
-        'sorted',
-        String,
-        canNull: true,
-      ),
-      Attr(
-        'name',
-        String,
-      ),
-      Attr(
-        'extend',
-        String,
-        canNull: true,
-      ),
-    ],
+    required super.attributes,
   });
 
   @override
-  final icon = IconF(0xf560);
+  final icon = IconF(0xe1ae);
 }

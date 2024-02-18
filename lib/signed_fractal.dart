@@ -18,14 +18,18 @@ class SignedFractal {
     PostFractal.controller,
     WriterFractal.controller,
     NodeFractal.controller,
+    FilterFractal.controller,
+    CatalogFractal.controller,
     InteractionFractal.controller,
-    UserFractal.controller,
+    ConnectionFractal.controller,
+    NetworkFractal.controller,
   ];
 
   static Future<int> init() async {
     for (final el in ctrls) {
       await el.init();
     }
+    await UserFractal.init();
     return 1;
   }
 }

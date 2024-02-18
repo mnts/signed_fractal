@@ -7,11 +7,7 @@ class PostCtrl<T extends PostFractal> extends EventsCtrl<T> {
     super.name = 'post',
     required super.make,
     required super.extend,
-    super.attributes = const <Attr>[
-      Attr('content', String),
-      Attr('file', String),
-      Attr('kind', int, def: '0'),
-    ],
+    required super.attributes,
   });
 }
 
@@ -22,6 +18,21 @@ class PostFractal extends EventFractal {
       MP() => PostFractal.fromMap(d),
       _ => throw ('wrong rewriter given')
     },
+    attributes: <Attr>[
+      Attr(
+        name: 'content',
+        format: 'TEXT',
+      ),
+      Attr(
+        name: 'file',
+        format: 'TEXT',
+      ),
+      Attr(
+        name: 'kind',
+        format: 'INTEGER',
+        def: '0',
+      ),
+    ],
   );
 
   PostCtrl get ctrl => controller;

@@ -1,27 +1,25 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:dart_bs58check/dart_bs58check.dart';
+import 'package:fractal_socket/index.dart';
 import '../signed_fractal.dart';
+import 'package:collection/collection.dart';
 
 class UserCtrl<T extends UserFractal> extends NodeCtrl<T> {
   UserCtrl({
     super.name = 'user',
     required super.make,
     required super.extend,
-    super.attributes = const [
-      Attr(
-        'eth',
-        String,
-        canNull: true,
-      ),
-      Attr(
-        'pass',
-        String,
-      ),
-      ...SigningMix.attributes,
-    ],
+    required super.attributes,
   });
+
+  @override
+  Future<T?> put(u) async {
+    //if (u['type'] == 'user' && u['created_at'] < 1705991853) return null;
+    return super.put(u);
+  }
 
   @override
   final icon = IconF(0xe491);
@@ -36,7 +34,31 @@ class UserFractal extends NodeFractal with SigningMix {
       Object() || null => throw ('wrong event type')
     },
     extend: NodeFractal.controller,
+    attributes: [
+      Attr(
+        name: 'eth',
+        format: 'TEXT',
+        canNull: true,
+      ),
+      Attr(
+        name: 'pass',
+        format: 'TEXT',
+      ),
+      ...SigningMix.attributes,
+    ],
   );
+
+  static Future init() async {
+    await controller.init();
+    if (activeHash != null) {
+      CatalogFractal(
+        filter: {
+          'event': {'hash': activeHash},
+        },
+        source: UserFractal.controller,
+      );
+    }
+  }
 
   @override
   UserCtrl get ctrl => controller;
@@ -47,7 +69,23 @@ class UserFractal extends NodeFractal with SigningMix {
   String? eth;
   String? pass;
 
-  static final map = MapF<UserFractal>();
+  static final flow = TypeFilter<UserFractal>(NodeFractal.flow);
+
+  static FutureOr<UserFractal?> byName(String name) async {
+    final user = flow.list.firstWhereOrNull(
+      (f) => f.name == name,
+    );
+
+    if (user == null) {
+      ClientFractal.main?.sink({
+        'cmd': 'search',
+        'type': UserFractal.controller.name,
+        'where': {'name': name},
+      });
+    }
+
+    return user;
+  }
 
   late final KeyPair keyPair;
 
@@ -59,13 +97,11 @@ class UserFractal extends NodeFractal with SigningMix {
     super.extend,
     String? password,
     required super.name,
-  }) {
-    signing();
-
+  }) : keyPair = SigningMix.signing() {
     if (password != null) {
       pass = makePass(password);
     }
-    map.complete(name, this);
+    //map.complete(name, this);
   }
 
   static String makePass(String word) {
@@ -103,28 +139,25 @@ class UserFractal extends NodeFractal with SigningMix {
     */
   }
 
-  static UserFractal byEth(String address) =>
-      map.values.firstWhere((u) => u.eth == address);
-
   @override
   get hashData => [
         ...super.hashData,
       ];
 
-  static late final activeHash = DBF.main['active'];
+  static final activeHash = DBF.main['active'];
 
   UserFractal.fromMap(MP d)
       : eth = d['eth'],
         pass = d['pass'],
+        keyPair = SigningMix.signingFromMap(d),
         super.fromMap(d) {
-    signingFromMap(d);
     if (d['password'] case String password) {
       pass = makePass(password);
     }
 
     if (activeHash != null && activeHash == hash) active.value = this;
 
-    map.complete(name, this);
+    //map.complete(name, this);
   }
 
   MP get _map => {
@@ -141,5 +174,11 @@ class UserFractal extends NodeFractal with SigningMix {
   MP toMap() => {
         ...super.toMap(),
         ..._map,
+      };
+
+  @override
+  Object? operator [](String key) => switch (key) {
+        'eth' => eth,
+        _ => super[key],
       };
 }

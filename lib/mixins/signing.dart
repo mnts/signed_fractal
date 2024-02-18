@@ -1,15 +1,15 @@
 import '../signed_fractal.dart';
 
 mixin SigningMix on NodeFractal {
-  static const attributes = [
+  static final attributes = [
     Attr(
-      'private_key',
-      String,
+      name: 'private_key',
+      format: 'TEXT',
       isPrivate: true,
     ),
     Attr(
-      'public_key',
-      String,
+      name: 'public_key',
+      format: 'TEXT',
     ),
   ];
 
@@ -20,19 +20,18 @@ mixin SigningMix on NodeFractal {
     //map[keyPair.privateKey] = this;
   }
 
-  signing() {
-    keyPair = RandomKeyPairGenerator().generate();
-    _construct();
+  static KeyPair signing() {
+    return RandomKeyPairGenerator().generate();
+    //_construct();
   }
 
-  signingFromMap(MP d) {
-    keyPair = d['public_key'] != null
+  static KeyPair signingFromMap(MP d) {
+    return d['public_key'] != null
         ? KeyPair(
             publicKey: d['public_key'],
             privateKey: d['private_key'],
           )
         : RandomKeyPairGenerator().generate();
-    _construct();
   }
 
   MP get signingMap => {
