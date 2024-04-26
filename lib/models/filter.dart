@@ -41,12 +41,6 @@ class FilterFractal extends Attr {
   @override
   FilterCtrl get ctrl => controller;
 
-  @override
-  get hashData => [
-        ...super.hashData,
-        filter,
-      ];
-
   //final FlowF<EventFractal> from;
   final Map<String, MP>? filter;
   Qf qf;

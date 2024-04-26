@@ -14,9 +14,9 @@ mixin Rewritable on EventFractal {
   Object? operator [](String key) =>
       m[key]?.content ?? extend?[key] ?? super[key];
 
-  static Future<T?> ext<T extends EventFractal>(
+  static Future<T> ext<T extends EventFractal>(
     MP d,
-    Future<T?> Function() cb,
+    Future<T> Function() cb,
   ) async {
     NodeFractal? extended;
     if (d['extend'] case String extend) {
@@ -72,6 +72,7 @@ class WriterFractal extends PostFractal {
       Attr(
         name: 'attr',
         format: 'TEXT',
+        isImmutable: true,
       ),
     ],
   );
@@ -90,9 +91,6 @@ class WriterFractal extends PostFractal {
   provide(Consumable into) {
     if (into case Rewritable re) re.onWrite(this);
   }
-
-  @override
-  get hashData => [...super.hashData, attr];
 
   //TODO: make remove old after initiation
 

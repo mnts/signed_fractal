@@ -16,12 +16,6 @@ class UserCtrl<T extends UserFractal> extends NodeCtrl<T> {
   });
 
   @override
-  Future<T?> put(u) async {
-    //if (u['type'] == 'user' && u['created_at'] < 1705991853) return null;
-    return super.put(u);
-  }
-
-  @override
   final icon = IconF(0xe491);
 }
 
@@ -138,11 +132,6 @@ class UserFractal extends NodeFractal with SigningMix {
     return true;
     */
   }
-
-  @override
-  get hashData => [
-        ...super.hashData,
-      ];
 
   static final activeHash = DBF.main['active'];
 

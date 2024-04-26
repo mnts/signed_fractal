@@ -22,10 +22,12 @@ class PostFractal extends EventFractal {
       Attr(
         name: 'content',
         format: 'TEXT',
+        isImmutable: true,
       ),
       Attr(
         name: 'file',
         format: 'TEXT',
+        isImmutable: true,
       ),
       Attr(
         name: 'kind',
@@ -55,10 +57,6 @@ class PostFractal extends EventFractal {
     if (d case {'file': String fileHash}) {
       if (fileHash.isNotEmpty) file = FileF(fileHash);
     }
-  }
-
-  List get hashData {
-    return [...super.hashData, content, file?.name ?? ''];
   }
 
   @override

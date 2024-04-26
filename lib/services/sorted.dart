@@ -22,24 +22,22 @@ class SortedFrac<T extends EventFractal> extends Frac<List<T>> {
 
   int get length => value.length;
 
-  void fromArray(List<String> list) {
-    //dontNotify = true;
+  Future fromArray(List<String> list) async {
+    dontNotify = true;
     value.clear();
     for (var i = 0; i < list.length; i++) {
       final h = list[i];
-      final rq = NetworkFractal.request(h);
-      rq.then((f) {
-        if (f is T) {
-          order(f, i);
-        }
-      });
+      final f = await NetworkFractal.request(h);
+      if (f is T) {
+        order(f, i);
+      }
     }
-    //dontNotify = false;
+    dontNotify = false;
   }
 
-  fromString(String? s) {
+  fromString(String? s) async {
     if (s == null) return;
-    final r = fromArray(s.split(','));
+    await fromArray(s.split(','));
     notifyListeners();
   }
 

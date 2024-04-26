@@ -9,13 +9,7 @@ mixin Hashed {
   String hash = '';
   bool get isSaved => hash.isNotEmpty;
 
-  List get hashData => [];
-
-  doHash() {
-    return hash = makeHash(hashData);
-  }
-
-  static String makeHash(hashData) {
+  static String make(List hashData) {
     String serializedEvent = json.encode([
       ...hashData.map((d) => d ?? ''),
     ]);

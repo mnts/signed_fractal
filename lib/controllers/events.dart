@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:fractal/lib.dart';
 import 'package:fractal_base/extensions/sql.dart';
 import 'package:fractal_base/models/index.dart';
+import '../mixins/index.dart';
 import '../models/event.dart';
 import '../models/rewriter.dart';
 import '../services/map.dart';
@@ -28,6 +29,17 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FlowF<T> {
   }
   */
 
+  List hashData(MP m) {
+    if (extend case EventsCtrl ext) {
+      return [...immutableData(m), ...ext.hashData(m)];
+    }
+    return [[], 0, ...immutableData(m), name];
+  }
+
+  List immutableData(MP m) => [
+        ...attributes.where((a) => a.isImmutable).map((a) => (m[a.name] ?? '')),
+      ];
+
   bool dontNotify = false;
 
   void preload(Iterable json) {
@@ -40,12 +52,18 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FlowF<T> {
     dontNotify = false;
   }
 
-  Future<T?> put(MP item) async {
-    final pass = item['pass'];
-    return Rewritable.ext(
-      item,
-      () async => make(item),
-    );
+  Future<T> put(MP item) async {
+    //final ctrl = FractalCtrl.map[item['name']] as EventsCtrl;
+    final hash = Hashed.make(hashData(item));
+    final MP m = {
+      ...item,
+      'hash': hash,
+    };
+
+    final evf = EventFractal.map[hash] as T?;
+    return evf != null
+        ? Future<T>.value(evf)
+        : Rewritable.ext(m, () async => make(item));
   }
 
   /*

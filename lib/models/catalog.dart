@@ -28,11 +28,13 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
           name: 'filter',
           format: 'TEXT',
           canNull: true,
+          isImmutable: true,
         ),
         Attr(
           name: 'source',
           format: 'TEXT',
           canNull: true,
+          isImmutable: true,
         ),
         Attr(
           name: 'limit',
@@ -43,9 +45,6 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
 
   @override
   CatalogCtrl get ctrl => controller;
-
-  @override
-  get hashData => [...super.hashData, filter, source?.name];
 
   //final FlowF<EventFractal> from;
   final Map<String, dynamic>? filter;
@@ -60,10 +59,13 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
     query();
   }
 
+  bool includeSubTypes;
+
   CatalogFractal({
     super.to,
     this.filter = const {},
     this.source,
+    this.includeSubTypes = true,
     this.limit = 0,
   }) {
     _construct();
@@ -73,6 +75,7 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
       : filter = d['filter'] is String ? jsonDecode(d['filter']) : null,
         source = FractalCtrl.map['${d['source']}'] as FractalCtrl<T>?,
         limit = d['limit'] ?? 0,
+        includeSubTypes = true,
         super.fromMap() {
     _construct();
   }
@@ -174,6 +177,8 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
       'cmd': 'subscribe',
       'hash': hash,
     });
+    print('sync catalog');
+    print(ClientFractal.main?.toMap());
   }
 
   static final timer = TimedF();

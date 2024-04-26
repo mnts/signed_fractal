@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:app_fractal/index.dart';
+import 'package:expressions/expressions.dart';
 
 import '../security/key_pair.dart';
 import '../signed_fractal.dart';
@@ -22,6 +23,7 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
       Attr(
         name: 'name',
         format: 'TEXT',
+        isImmutable: true,
       ),
       Attr(
         name: 'extend',
@@ -30,6 +32,7 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
       ),
     ],
   );
+
   @override
   NodeCtrl get ctrl => controller;
 
@@ -39,9 +42,28 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
 
   final SortedFrac<EventFractal> sorted;
 
+  @override
+  get display {
+    if (this['display'] case String disp) {
+      final exp = Expression.parse(disp);
+      exp.toTokenString();
+      if (disp[0] == '.') {
+        if (this[disp.substring(1)] case String reDisplay) return reDisplay;
+      }
+    }
+    return title.value?.content ??
+        name
+            .replaceAll(
+              RegExp('[^A-Za-z0-9-]'),
+              ' ',
+            )
+            .toTitleCase;
+  }
+
   Timer? sortTimer;
   sort() {
     sortTimer?.cancel();
+
     sortTimer = Timer(const Duration(seconds: 2), () {
       write('sorted', sorted.toString());
       sortTimer = null;
@@ -60,6 +82,10 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
   }) : sorted = SortedFrac(sub ?? []) {
     if (extend != null) {
       this.extend = extend;
+
+      extend.addListener(() {
+        notifyListeners();
+      });
     }
     construct();
   }
@@ -120,9 +146,6 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
 
   String name;
 
-  @override
-  get hashData => [...super.hashData, name];
-
   NodeFractal.fromMap(MP d)
       : name = d['name'] ?? '',
         sorted = SortedFrac([])
@@ -131,15 +154,15 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
           ),
         super.fromMap(d) {
     if (d['extend'] case String ext) {
-      NetworkFractal.request(ext).then((ev) {
-        if (ev case NodeFractal node) {
-          extend = node;
-          node.addListener(() {
-            notifyListeners();
-          });
+      //NetworkFractal.request(ext).then((ev) {
+
+      if (EventFractal.map[ext] case NodeFractal node) {
+        extend = node;
+        node.addListener(() {
           notifyListeners();
-        }
-      });
+        });
+        //notifyListeners();
+      }
     }
     construct();
   }
@@ -155,14 +178,6 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
         ..._map,
       };
 
-  String get display =>
-      title.value?.content ??
-      name
-          .replaceAll(
-            RegExp('[^A-Za-z0-9-]'),
-            ' ',
-          )
-          .toTitleCase();
   final title = Writable();
   FileF? image;
   FileF? video;
@@ -171,6 +186,10 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
   @override
   preload() async {
     //myInteraction;
+
+    if (extend != null) {
+      extend!.preload();
+    }
     return super.preload();
   }
   /*
@@ -197,15 +216,17 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
           notifyListeners();
         case 'sorted':
           sorted.fromString(f.content);
-
+          print(sorted);
         case 'image':
           image = ImageF(f.content);
           notifyListeners();
         case 'video':
           video = FileF(f.content);
           notifyListeners();
+
         default:
-          super.onWrite(f);
+          notifyListeners();
+        //super.onWrite(f);
       }
     }
     return ok;

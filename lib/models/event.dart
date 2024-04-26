@@ -28,20 +28,23 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
       Attr(
         name: 'pubkey',
         format: 'TEXT',
+        isImmutable: true,
+      ),
+      Attr(
+        name: 'created_at',
+        format: 'INTEGER',
+        isImmutable: true,
+      ),
+      Attr(
+        name: 'to',
+        format: 'TEXT',
+        isImmutable: true,
       ),
       Attr(
         name: 'sig',
         format: 'TEXT',
       ),
-      Attr(
-        name: 'to',
-        format: 'TEXT',
-      ),
       Attr(name: 'sync_at', format: 'INTEGER'),
-      Attr(
-        name: 'created_at',
-        format: 'INTEGER',
-      ),
     ],
   );
 
@@ -57,23 +60,18 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
   int syncAt;
   String sig = '';
 
+  String get display => hash;
+
   @override
   String get path => '/-$hash';
 
-  //static late final user = UserNostr();
-//"[0,"56c5d5903affd0a3a86672da22e734d6f9c63638cfda9502964b653aec713876",1697109858,"","user","user","mantas"]"
-
-  //final tags = <List<String>>[];
-  @override
-  List get hashData => [
-        super.hashData,
-        0,
-        pubkey,
-        createdAt,
-        toHash ?? to?.hash ?? '',
-        type,
-        //ctrl.name
-      ];
+  String doHash() {
+    return hash = Hashed.make(
+      ctrl.hashData(
+        toMap(),
+      ),
+    );
+  }
 
   static bool isHash(String h) => h.length < 52 && h.length > 48;
 
@@ -118,10 +116,13 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
     final q = {'to': hash};
     events = CatalogFractal(
       filter: {'event': q},
-      source: controller,
+      source: WriterFractal.controller,
     )
       ..createdAt = 2
       ..synch();
+
+    print('preload');
+    print(toMap());
 
     return 1;
   }
@@ -155,6 +156,14 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
 
   bool get sharable => true;
 
+  String ownerHash = '';
+
+  factory EventFractal.get(MP m) {
+    final ctrl = FractalCtrl.map[m['name']] as EventsCtrl;
+    final hash = Hashed.make(ctrl.hashData(m));
+    return EventFractal.map[hash] ?? EventFractal.fromMap(m);
+  }
+
   EventFractal.fromMap(MP d)
       : pubkey = d['pubkey'] ?? '',
         createdAt = d['created_at'] ?? 0,
@@ -162,12 +171,13 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
         sig = d['sig'] ?? '',
         super(id: d['id']) {
     hash = d['hash'] ?? '';
-    final userHash = '${d['owner'] ?? ''}';
-    if (userHash.isNotEmpty) {
-      NetworkFractal.request(userHash).then((user) {
+    ownerHash = '${d['owner'] ?? ''}';
+    if (ownerHash.isNotEmpty) {
+      NetworkFractal.request(ownerHash).then((user) {
         if (user is UserFractal) {
           owner = user;
           ownerC.complete(owner);
+          notifyListeners();
         }
       });
     } else {
@@ -198,7 +208,6 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
 
   remove() {
     final post = PostFractal(content: 'remove', to: this)..synch();
-    print(post.hashData);
   }
 
   bool isValid = true;
@@ -247,9 +256,7 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
 
   final sharedWith = <DeviceFractal>[];
   void complete() {
-    if (hash.isEmpty) {
-      hash = Hashed.makeHash(hashData);
-    }
+    if (hash.isEmpty) doHash();
     if (!map.containsKey(hash)) {
       map.complete(hash, this);
     }
@@ -261,6 +268,7 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
   operator [](key) => switch (key) {
         'to' => toHash,
         'hash' => hash,
+        'owner' => owner?.hash ?? ownerHash,
         'sync_at' => syncAt,
         _ => null,
       };

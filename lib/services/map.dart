@@ -47,7 +47,7 @@ class MapF<T extends EventFractal> with FlowF<T> {
       map.remove(name);
     } else {
       final current = map[name];
-      if (current == null || current.createdAt < event.createdAt) {
+      if (current == null || current.createdAt <= event.createdAt) {
         map[name] = event;
       } else {
         return false;
