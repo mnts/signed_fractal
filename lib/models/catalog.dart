@@ -50,16 +50,8 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
   final Map<String, dynamic>? filter;
   FractalCtrl<T>? source;
 
-  void _construct() {
-    sub.list.forEach(receive);
-    sub.listen(receive);
-    if (source == null) return;
-    EventFractal.map.list.forEach(receive);
-    EventFractal.map.listen(receive);
-    query();
-  }
-
   bool includeSubTypes;
+  bool onlyLocal;
 
   CatalogFractal({
     super.to,
@@ -67,6 +59,7 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
     this.source,
     this.includeSubTypes = true,
     this.limit = 0,
+    this.onlyLocal = false,
   }) {
     _construct();
   }
@@ -76,6 +69,7 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
         source = FractalCtrl.map['${d['source']}'] as FractalCtrl<T>?,
         limit = d['limit'] ?? 0,
         includeSubTypes = true,
+        onlyLocal = false,
         super.fromMap() {
     _construct();
   }
@@ -97,40 +91,68 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
 
   @override
   dispose() {
-    EventFractal.map.unListen(receive);
-    super.dispose();
+    sub.unListen(receive);
+    if (source case EventsCtrl evCtrl) {
+      evCtrl.unListen(receive);
+      if (includeSubTypes) {
+        for (var c in evCtrl.top) {
+          c.unListen(receive);
+        }
+      }
+      super.dispose();
+    }
   }
 
   bool match(T f) {
-    //if (f.type != source.name) return false;
-    MP filterMap = {
-      if (filter != null)
-        for (var e in filter!.entries) ...e.value,
-    };
+    if (source != null) {
+      if (!includeSubTypes && f.type != source!.name) return false;
+      if (includeSubTypes &&
+          !(f.type == source!.name ||
+              source!.top.any((c) => c.name == f.type))) {
+        return false;
+      }
+    }
 
-    return filterMap.entries.every((e) {
-      final value = f[e.key];
-      return switch (e.value) {
-        String s => (s.length > 2 &&
-                s[0] == '%' &&
-                s[s.length - 1] == '%' &&
-                value is String)
-            ? value.contains(
-                s.substring(1, s.length - 1),
-              )
-            : value == s,
-        int i => value == i,
-        double d => value == d,
-        bool b => value == b,
-        _ => false,
-      };
-    });
+    return filter?.entries.every((e) {
+          dynamic value = f[e.key];
+          return switch (e.value) {
+            String s => (s.length > 2 &&
+                    s[0] == '%' &&
+                    s[s.length - 1] == '%' &&
+                    value is String)
+                ? value.contains(
+                    s.substring(1, s.length - 1),
+                  )
+                : value == s,
+            int i => value == i,
+            Map m => m.entries
+                .map((e) => switch (e.key) {
+                      'gt' => value > e.value,
+                      'gte' => value >= e.value,
+                      'lt' => value < e.value,
+                      'lte' => value <= e.value,
+                      _ => '',
+                    })
+                .every((element) => false),
+            double d => value == d,
+            false => value == false || '$value' == '' || value == null,
+            true => value == true || '${value ?? ''}'.isNotEmpty,
+            _ => false,
+          };
+        }) ??
+        true;
   }
 
+  @override
   receive(Fractal f) {
+    print('receve($f)');
+
     if (f is T && match(f)) {
-      list.add(f);
-      notify(f);
+      if (f.state == StateF.removed) {
+        list.remove(f);
+        notifyListeners();
+      }
+      super.receive(f);
     }
   }
 
@@ -158,26 +180,74 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
   }
   */
 
+  void _construct() {}
+
+  bool _initiated = false;
+  @override
+  initiate() async {
+    if (_initiated) return 0;
+    sub.list.forEach(receive);
+    sub.listen(receive);
+    if (source case EventsCtrl evCtrl) {
+      evCtrl.list.forEach(receive);
+      evCtrl.listen(receive);
+      if (includeSubTypes) {
+        for (var c in evCtrl.top) {
+          c.list.forEach(receive);
+          c.listen(receive);
+        }
+      }
+    }
+
+    query();
+    _initiated = true;
+    return super.initiate();
+  }
+
   static Function(MP)? discovery;
-  void query() {
+  query() async {
     if (source == null) return;
-    final r = source!.select(
-      fields: ['hash', 'type'],
-      subWhere: filter,
+    final r = await source!.select(
+      fields: [
+        'hash',
+        'type',
+      ],
+      where: filter,
       limit: limit,
-      includeSubTypes: true,
+      includeSubTypes: includeSubTypes,
     );
     _collect(r);
   }
 
   @override
-  synch() {
+  List<T> listen(fn) {
+    initiate();
+    return super.listen(fn);
+  }
+
+  @override
+  synch() async {
+    await super.synch();
+    initiate();
+    if (!onlyLocal) {
+      ClientFractal.main?.sink({
+        'cmd': 'subscribe',
+        'hash': hash,
+      });
+      print('sync catalog');
+    }
+    print(ClientFractal.main?.toMap());
+  }
+
+  unSynch() {
     super.synch();
-    ClientFractal.main?.sink({
-      'cmd': 'subscribe',
-      'hash': hash,
-    });
-    print('sync catalog');
+    if (!onlyLocal) {
+      ClientFractal.main?.sink({
+        'cmd': 'unsubscribe',
+        'hash': hash,
+      });
+      print('unSync catalog');
+    }
     print(ClientFractal.main?.toMap());
   }
 
@@ -199,12 +269,10 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
     picking[h] = miss;
 
     timer.hold(() async {
-      final r = EventFractal.controller.select(
+      final r = await EventFractal.controller.select(
         fields: ['hash', 'type'],
-        subWhere: {
-          'event': {
-            'hash': [...picking.keys]
-          },
+        where: {
+          'hash': [...picking.keys]
         },
         includeSubTypes: true,
       );
@@ -239,13 +307,11 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
     }
 
     return timerC.hold(() async {
-      collecting.forEach((key, value) {
+      collecting.forEach((key, value) async {
         final ctrl = FractalCtrl.map[key];
         if (ctrl is! EventsCtrl) return;
-        final res = ctrl.select(
-          subWhere: {
-            'fractal': {'id': value},
-          },
+        final res = await ctrl.select(
+          where: {'id': value},
         );
 
         for (MP item in res) {

@@ -30,7 +30,14 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
         format: 'TEXT',
         canNull: true,
       ),
+      Attr(
+        name: 'price',
+        format: 'REAL',
+        isImmutable: false,
+        canNull: true,
+      ),
     ],
+    //indexes: {},
   );
 
   @override
@@ -70,12 +77,15 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
     });
   }
 
+  double? price;
+
   @override
   //String get path => '/${ctrl.name}/$name';
 
   NodeFractal({
     super.to,
     this.name = '',
+    this.price,
     NodeFractal? extend,
     KeyPair? keyPair,
     List<EventFractal>? sub,
@@ -87,10 +97,31 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
         notifyListeners();
       });
     }
-    construct();
   }
 
-  construct() {}
+  @override
+  constructFromMap(m) async {
+    if (m['extend'] case String extendStr) {
+      if (await NetworkFractal.request(extendStr) case NodeFractal ext) {
+        extend = ext;
+        m['type'] ??= extend!.type;
+      }
+    }
+
+    if (extend != null) {
+      extend!.addListener(() {
+        notifyListeners();
+      });
+      extend!.extensions.complete(hash, this);
+      notifyListeners();
+
+      if (events != null) {
+        extend!.preload();
+      }
+    }
+
+    return super.constructFromMap(m);
+  }
 
   @override
   consume(event) {
@@ -112,6 +143,13 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
           ..synch());
     return node;
   }
+
+  late final _catalog = CatalogFractal(
+    filter: {'to': hash},
+    source: NodeFractal.controller,
+  )
+    ..createdAt = 2
+    ..synch();
 
   final sub = MapF<NodeFractal>();
 
@@ -148,27 +186,16 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
 
   NodeFractal.fromMap(MP d)
       : name = d['name'] ?? '',
+        price = d['price']?.toDouble(),
         sorted = SortedFrac([])
           ..fromString(
             d['sub'],
           ),
-        super.fromMap(d) {
-    if (d['extend'] case String ext) {
-      //NetworkFractal.request(ext).then((ev) {
-
-      if (EventFractal.map[ext] case NodeFractal node) {
-        extend = node;
-        node.addListener(() {
-          notifyListeners();
-        });
-        //notifyListeners();
-      }
-    }
-    construct();
-  }
+        super.fromMap(d);
 
   MP get _map => {
         'name': name,
+        'price': price,
         'extend': extend?.hash,
       };
 
@@ -184,13 +211,14 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
   String? description;
 
   @override
-  preload() async {
+  preload([type]) async {
     //myInteraction;
+    if (type == 'node') _catalog;
 
     if (extend != null) {
-      extend!.preload();
+      extend!.preload(type);
     }
-    return super.preload();
+    return super.preload(type);
   }
   /*
   FileF? get image => _image ?? extend?.image;
@@ -208,6 +236,15 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
       switch (f.attr) {
         case 'title':
           title.value = f;
+        case 'price':
+          final val = double.tryParse(f.content);
+          if (val != null && price != val) {
+            controller.update({
+              'price': val,
+            }, id);
+            price = val;
+            notifyListeners();
+          }
         case 'description':
           description = f.content;
           notifyListeners();
@@ -235,6 +272,7 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
   @override
   Object? operator [](String key) => switch (key) {
         'name' => name,
+        'price' => price ?? super[key],
         _ => super[key],
       };
 }

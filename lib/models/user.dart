@@ -44,11 +44,11 @@ class UserFractal extends NodeFractal with SigningMix {
 
   static Future init() async {
     await controller.init();
-    if (activeHash != null) {
+
+    activeHash = await DBF.main.getVar('active') ?? '';
+    if (activeHash.isNotEmpty) {
       CatalogFractal(
-        filter: {
-          'event': {'hash': activeHash},
-        },
+        filter: {'hash': activeHash},
         source: UserFractal.controller,
       );
     }
@@ -58,13 +58,14 @@ class UserFractal extends NodeFractal with SigningMix {
   UserCtrl get ctrl => controller;
 
   @override
-  String get path => '/@$name';
+  String get path => '/@$hash';
 
   String? eth;
   String? pass;
 
   static final flow = TypeFilter<UserFractal>(NodeFractal.flow);
 
+/*
   static FutureOr<UserFractal?> byName(String name) async {
     final user = flow.list.firstWhereOrNull(
       (f) => f.name == name,
@@ -80,6 +81,7 @@ class UserFractal extends NodeFractal with SigningMix {
 
     return user;
   }
+  */
 
   late final KeyPair keyPair;
 
@@ -108,12 +110,12 @@ class UserFractal extends NodeFractal with SigningMix {
 
   static activate(UserFractal user) {
     UserFractal.active.value = user;
-    DBF.main['active'] = user.hash;
+    DBF.main.setVar('active', user.hash);
   }
 
   static logOut() {
     UserFractal.active.value = null;
-    DBF.main['active'] = '';
+    DBF.main.setVar('active', '');
   }
 
   bool auth(String password) {
@@ -133,7 +135,7 @@ class UserFractal extends NodeFractal with SigningMix {
     */
   }
 
-  static final activeHash = DBF.main['active'];
+  static String activeHash = '';
 
   UserFractal.fromMap(MP d)
       : eth = d['eth'],
@@ -144,7 +146,7 @@ class UserFractal extends NodeFractal with SigningMix {
       pass = makePass(password);
     }
 
-    if (activeHash != null && activeHash == hash) active.value = this;
+    if (activeHash == hash) active.value = this;
 
     //map.complete(name, this);
   }
@@ -155,9 +157,11 @@ class UserFractal extends NodeFractal with SigningMix {
         'pass': pass ?? '',
       };
 
+/*
   synch() {
     super.synch();
   }
+*/
 
   @override
   MP toMap() => {

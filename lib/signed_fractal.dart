@@ -1,7 +1,7 @@
 import 'package:fractal/lib.dart';
 
 import 'models/index.dart';
-
+import 'fr.dart';
 export 'models/index.dart';
 export 'mixins/index.dart';
 export 'controllers/index.dart';

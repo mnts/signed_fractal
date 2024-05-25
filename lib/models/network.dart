@@ -1,6 +1,8 @@
 import 'package:fractal_socket/index.dart';
 import 'package:signed_fractal/signed_fractal.dart';
 
+import '../fr.dart';
+
 class NetworkCtrl<T extends NetworkFractal> extends NodeCtrl<T> {
   NetworkCtrl({
     super.name = 'network',
@@ -8,6 +10,11 @@ class NetworkCtrl<T extends NetworkFractal> extends NodeCtrl<T> {
     required super.extend,
     super.attributes = const <Attr>[],
   });
+
+  @override
+  init() {
+    super.init();
+  }
 
   @override
   final icon = IconF(0xf0792);
@@ -21,19 +28,20 @@ class NetworkFractal extends NodeFractal {
       Object() || null => throw ('wrong event type')
     },
   );
+
   @override
   NetworkCtrl get ctrl => controller;
 
   static late NetworkFractal active;
 
-  static Future<EventFractal> request(String hash) {
-    final rq = EventFractal.map.request(hash);
+  static Future<T> request<T extends EventFractal>(String hash) {
+    final rq = EventFractal.map.request<T>(hash);
     if (!EventFractal.map.containsKey(hash)) {
       CatalogFractal.pick(hash, (_) {
         ClientFractal.main?.pick(hash);
       });
     }
-    return rq;
+    return rq as Future<T>;
   }
 
   NetworkFractal({

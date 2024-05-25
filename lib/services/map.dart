@@ -12,10 +12,10 @@ class MapF<T extends EventFractal> with FlowF<T> {
   @override
   get list => map.values.toList();
 
-  Future<T> request(String hash) async {
-    final comp = Completer<T>();
+  Future<R> request<R extends T>(String hash) async {
+    final comp = Completer<R>();
     if (map.containsKey(hash)) {
-      comp.complete(map[hash]);
+      comp.complete(map[hash] as R);
     } else {
       if (_requests.containsKey(hash)) {
         _requests[hash]!.add(comp);
@@ -37,6 +37,8 @@ class MapF<T extends EventFractal> with FlowF<T> {
     }
     super.notify(fractal);
   }
+
+  T? remove(String key) => map.remove(key);
 
   cleanUp() {
     map.removeWhere((key, f) => f.state == StateF.removed);

@@ -14,6 +14,7 @@ mixin Rewritable on EventFractal {
   Object? operator [](String key) =>
       m[key]?.content ?? extend?[key] ?? super[key];
 
+  /*
   static Future<T> ext<T extends EventFractal>(
     MP d,
     Future<T> Function() cb,
@@ -37,6 +38,7 @@ mixin Rewritable on EventFractal {
 
     return f;
   }
+  */
 }
 
 class Writable extends Frac<WriterFractal?> {
@@ -95,10 +97,10 @@ class WriterFractal extends PostFractal {
   //TODO: make remove old after initiation
 
   @override
-  synch() {
-    super.synch();
+  synch() async {
+    await super.synch();
 
-    ctrl.query("""
+    await ctrl.query("""
       DELETE FROM fractal
       WHERE id IN (
         SELECT writer.id_fractal

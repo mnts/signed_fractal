@@ -13,7 +13,9 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FlowF<T> {
     required super.make,
     required super.extend,
     required super.attributes,
-  });
+  }) {
+    if (extend case FractalCtrl ext) ext.sub.add(this);
+  }
 
   @override
   final icon = IconF(0xe22d);
@@ -31,7 +33,7 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FlowF<T> {
 
   List hashData(MP m) {
     if (extend case EventsCtrl ext) {
-      return [...immutableData(m), ...ext.hashData(m)];
+      return [...ext.hashData(m), ...immutableData(m)];
     }
     return [[], 0, ...immutableData(m), name];
   }
@@ -52,18 +54,18 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FlowF<T> {
     dontNotify = false;
   }
 
+  @override
+  List<EventsCtrl> get top => super.top.map((c) => c as EventsCtrl).toList();
+
   Future<T> put(MP item) async {
     //final ctrl = FractalCtrl.map[item['name']] as EventsCtrl;
-    final hash = Hashed.make(hashData(item));
-    final MP m = {
+    item = {
+      'hash': Hashed.make(hashData(item)),
       ...item,
-      'hash': hash,
     };
 
-    final evf = EventFractal.map[hash] as T?;
-    return evf != null
-        ? Future<T>.value(evf)
-        : Rewritable.ext(m, () async => make(item));
+    final evf = EventFractal.map[item['hash']] as T?;
+    return evf ?? make(item);
   }
 
   /*

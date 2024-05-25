@@ -18,11 +18,13 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
       Attr(
         name: 'hash',
         format: 'TEXT',
+        isIndex: true,
         isUnique: true,
       ),
       Attr(
         name: 'owner',
         format: 'TEXT',
+        isIndex: true,
         canNull: true,
       ),
       Attr(
@@ -39,6 +41,7 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
         name: 'to',
         format: 'TEXT',
         isImmutable: true,
+        isIndex: true,
       ),
       Attr(
         name: 'sig',
@@ -86,6 +89,17 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
 
   move() {}
 
+  //@mustCallSuper
+  Future<bool> construct() async {
+    if (this is Attr) return false;
+    ctrl.receive(this);
+    return true;
+  }
+
+  Future<bool> constructFromMap(MP m) async {
+    return construct();
+  }
+
   EventFractal({
     super.id,
     String hash = '',
@@ -107,22 +121,19 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
     }
 
     ownerC.complete(owner);
+    construct();
   }
 
   @override
-  preload() async {
+  preload([type]) async {
     if (events != null) return 1;
     if (hash.isEmpty) return 0;
-    final q = {'to': hash};
     events = CatalogFractal(
-      filter: {'event': q},
+      filter: {'to': hash},
       source: WriterFractal.controller,
     )
       ..createdAt = 2
       ..synch();
-
-    print('preload');
-    print(toMap());
 
     return 1;
   }
@@ -184,6 +195,18 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
       ownerC.complete();
     }
 
+    if (d['shared_with'] case List shared) {
+      for (var x in shared) {
+        switch (x) {
+          case String h:
+            final device = EventFractal.map[h] as DeviceFractal;
+            sharedWith.add(device);
+          case DeviceFractal device:
+            sharedWith.add(device);
+        }
+      }
+    }
+
     if (d case {'to': String toHash}) {
       if (d.isNotEmpty) {
         this.toHash = toHash;
@@ -200,14 +223,22 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
       isValid = false;
     }
     */
-
     if (hash.isNotEmpty) {
       complete();
     }
+
+    constructFromMap(d).then((b) {});
   }
 
   remove() {
     final post = PostFractal(content: 'remove', to: this)..synch();
+    ctrl.list.removeWhere((f) => f == this);
+    EventFractal.map.remove(hash);
+    for (var c in CatalogFractal.controller.list) {
+      if (c.list.remove(this)) {
+        c.notifyListeners();
+      }
+    }
   }
 
   bool isValid = true;
@@ -227,12 +258,12 @@ class EventFractal extends Fractal with Hashed, Consumable<EventFractal> {
 
   int idEvent = 0;
   @override
-  synch() {
+  synch() async {
     complete();
     //distribute();
 
     if (createdAt == 2) return;
-    super.synch();
+    await super.synch();
   }
 
   setSynched() {
