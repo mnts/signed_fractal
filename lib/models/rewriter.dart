@@ -11,10 +11,9 @@ mixin Rewritable on EventFractal {
 
   bool onWrite(WriterFractal f) => m.complete(f.attr, f);
 
-  Object? operator [](String key) =>
-      m[key]?.content ?? extend?[key] ?? super[key];
+  //Object? operator [](String key) => super[key] ?? m[key]?.content ?? extend?[key];
 
-  /*
+  /*>
   static Future<T> ext<T extends EventFractal>(
     MP d,
     Future<T> Function() cb,
@@ -90,7 +89,7 @@ class WriterFractal extends PostFractal {
   });
 
   @override
-  provide(Consumable into) {
+  provide(into) {
     if (into case Rewritable re) re.onWrite(this);
   }
 
@@ -110,7 +109,7 @@ class WriterFractal extends PostFractal {
         WHERE event.created_at < ? 
         AND event.`to` = ? AND writer.attr = ?
       );
-    """, [createdAt, toHash, attr]);
+    """, [createdAt, to?.ref, attr]);
   }
 
   WriterFractal.fromMap(MP d)

@@ -1,5 +1,6 @@
 import 'package:signed_fractal/signed_fractal.dart';
 
+import '../fr.dart';
 import 'index.dart';
 
 class ConnectionCtrl<T extends ConnectionFractal> extends InteractionCtrl<T> {

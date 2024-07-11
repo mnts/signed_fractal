@@ -48,21 +48,27 @@ class PostFractal extends EventFractal {
     this.file,
     super.to,
     this.kind = 0,
+    super.owner,
   });
 
   PostFractal.fromMap(MP d)
       : content = '${d['content']}',
         kind = d['kind'] ?? 0,
-        super.fromMap(d) {
-    if (d case {'file': String fileHash}) {
-      if (fileHash.isNotEmpty) file = FileF(fileHash);
-    }
-  }
+        file = d['file'] is String && (d['file'] as String).isNotEmpty
+            ? FileF(d['file'])
+            : null,
+        super.fromMap(d);
+
+  @override
+  operator [](String key) => switch (key) {
+        'content' => content,
+        'file' => file?.name ?? '',
+        _ => super[key],
+      };
 
   @override
   MP toMap() => {
         ...super.toMap(),
-        'content': content,
-        'file': file?.name ?? '',
+        for (var a in controller.attributes) a.name: this[a.name],
       };
 }

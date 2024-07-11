@@ -29,6 +29,7 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
         name: 'extend',
         format: 'TEXT',
         canNull: true,
+        isImmutable: true,
       ),
       Attr(
         name: 'price',
@@ -100,11 +101,12 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
   }
 
   @override
-  constructFromMap(m) async {
+  Future<bool> constructFromMap(m) async {
     if (m['extend'] case String extendStr) {
       if (await NetworkFractal.request(extendStr) case NodeFractal ext) {
+        await ext.ready;
         extend = ext;
-        m['type'] ??= extend!.type;
+        //m['type'] ??= extend!.type;
       }
     }
 
@@ -153,6 +155,14 @@ class NodeFractal extends EventFractal with Rewritable, InteractiveFractal {
 
   final sub = MapF<NodeFractal>();
 
+  @override
+  remove() async {
+    await super.remove();
+    if ((await to?.future) case NodeFractal node) {
+      node.sub.notify(this);
+    }
+  }
+
   Future<List<NodeFractal>> discover() async {
     return [];
   }
@@ -184,14 +194,14 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
 
   String name;
 
-  NodeFractal.fromMap(MP d)
+  NodeFractal.fromMap(super.d)
       : name = d['name'] ?? '',
         price = d['price']?.toDouble(),
         sorted = SortedFrac([])
           ..fromString(
             d['sub'],
           ),
-        super.fromMap(d);
+        super.fromMap();
 
   MP get _map => {
         'name': name,
@@ -206,6 +216,7 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
       };
 
   final title = Writable();
+  FileF? file;
   FileF? image;
   FileF? video;
   String? description;
@@ -213,9 +224,11 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
   @override
   preload([type]) async {
     //myInteraction;
+    await ready;
     if (type == 'node') _catalog;
 
     if (extend != null) {
+      await extend!.ready;
       extend!.preload(type);
     }
     return super.preload(type);
@@ -270,9 +283,9 @@ SELECT id_fractal as id FROM $tableName WHERE to = ?
   }
 
   @override
-  Object? operator [](String key) => switch (key) {
+  operator [](String key) => switch (key) {
         'name' => name,
-        'price' => price ?? super[key],
-        _ => super[key],
+        'price' => price ?? extend?.price ?? super[key],
+        _ => super[key] ?? m[key]?.content ?? extend?[key],
       };
 }

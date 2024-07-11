@@ -1,21 +1,15 @@
+/*
+import 'package:fractal/fractal.dart';
+
 import '../models/index.dart';
 import 'hashed.dart';
 
-mixin Consumable<T extends Consumable<dynamic>> on Hashed {
-  T? to;
+mixin Consumable on Fractal {
+  EventFractal? to;
 
-  String? toHash;
 
-  static final map = EventFractal.map;
 
-  consumable(T into) {
-    to = into;
-
-    provide(into);
-    into.consume(this);
-  }
-
-  void consume(T event) {
+  void consume(Consumable event) {
     /*
     print('consume');
     print(event);
@@ -23,7 +17,7 @@ mixin Consumable<T extends Consumable<dynamic>> on Hashed {
     //notifyListeners();
   }
 
-  provide(T into) {
+  provide(EventFractal into) {
     /*
     print('provide');
     print(into);
@@ -32,3 +26,4 @@ mixin Consumable<T extends Consumable<dynamic>> on Hashed {
 
   CatalogFractal? events;
 }
+*/

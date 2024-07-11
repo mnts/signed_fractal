@@ -37,6 +37,11 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
           isImmutable: true,
         ),
         Attr(
+          name: 'mode',
+          format: 'TEXT',
+          isImmutable: true,
+        ),
+        Attr(
           name: 'limit',
           format: 'INTEGER',
           def: '0',
@@ -46,9 +51,20 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
   @override
   CatalogCtrl get ctrl => controller;
 
+  T? byId(int id) {
+    try {
+      return list.firstWhere((f) => f.id == id);
+    } catch (e) {
+      return null;
+    }
+  }
+
   //final FlowF<EventFractal> from;
   final Map<String, dynamic>? filter;
   FractalCtrl<T>? source;
+  List<String> get mode => [
+        if (!includeSubTypes) 'noSub',
+      ];
 
   bool includeSubTypes;
   bool onlyLocal;
@@ -65,10 +81,14 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
   }
 
   CatalogFractal.fromMap(super.d)
-      : filter = d['filter'] is String ? jsonDecode(d['filter']) : null,
+      : filter = switch (d['filter']) {
+          String s => jsonDecode(s),
+          Map m => {...m},
+          _ => null,
+        },
         source = FractalCtrl.map['${d['source']}'] as FractalCtrl<T>?,
         limit = d['limit'] ?? 0,
-        includeSubTypes = true,
+        includeSubTypes = !"${d['mode']}".contains('noSub'),
         onlyLocal = false,
         super.fromMap() {
     _construct();
@@ -80,7 +100,8 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
   Object? operator [](String key) => switch (key) {
         'filter' => jsonEncode(filter),
         'source' => source?.name ?? '',
-        _ => null,
+        'mode' => [...mode..sort()].join(','),
+        _ => super[key],
       };
 
   @override
@@ -91,7 +112,7 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
 
   @override
   dispose() {
-    sub.unListen(receive);
+    //sub.unListen(receive);
     if (source case EventsCtrl evCtrl) {
       evCtrl.unListen(receive);
       if (includeSubTypes) {
@@ -103,7 +124,7 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
     }
   }
 
-  bool match(T f) {
+  bool matchSource(T f) {
     if (source != null) {
       if (!includeSubTypes && f.type != source!.name) return false;
       if (includeSubTypes &&
@@ -112,6 +133,11 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
         return false;
       }
     }
+    return true;
+  }
+
+  bool match(T f) {
+    if (!matchSource(f)) return false;
 
     return filter?.entries.every((e) {
           dynamic value = f[e.key];
@@ -186,8 +212,8 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
   @override
   initiate() async {
     if (_initiated) return 0;
-    sub.list.forEach(receive);
-    sub.listen(receive);
+    //sub.list.forEach(receive);
+    //sub.listen(receive);
     if (source case EventsCtrl evCtrl) {
       evCtrl.list.forEach(receive);
       evCtrl.listen(receive);
@@ -199,14 +225,14 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
       }
     }
 
-    query();
+    await query();
     _initiated = true;
     return super.initiate();
   }
 
   static Function(MP)? discovery;
-  query() async {
-    if (source == null) return;
+  Future<List<MP>> query() async {
+    if (source == null) return [];
     final r = await source!.select(
       fields: [
         'hash',
@@ -217,6 +243,7 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
       includeSubTypes: includeSubTypes,
     );
     _collect(r);
+    return r;
   }
 
   @override
@@ -228,7 +255,7 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
   @override
   synch() async {
     await super.synch();
-    initiate();
+    await initiate();
     if (!onlyLocal) {
       ClientFractal.main?.sink({
         'cmd': 'subscribe',
@@ -315,7 +342,7 @@ class CatalogFractal<T extends Fractal> extends NodeFractal with FlowF<T> {
         );
 
         for (MP item in res) {
-          ctrl.put(item);
+          await ctrl.put(item);
         }
       });
       collecting = {};

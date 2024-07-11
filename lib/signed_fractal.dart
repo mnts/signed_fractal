@@ -1,5 +1,6 @@
 import 'package:fractal/lib.dart';
 
+import 'models/group.dart';
 import 'models/index.dart';
 import 'fr.dart';
 export 'models/index.dart';
@@ -30,6 +31,7 @@ class SignedFractal {
       await el.init();
     }
     await UserFractal.init();
+
     return 1;
   }
 }

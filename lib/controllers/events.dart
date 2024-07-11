@@ -1,11 +1,8 @@
 import 'dart:async';
 import 'package:fractal/lib.dart';
-import 'package:fractal_base/extensions/sql.dart';
-import 'package:fractal_base/models/index.dart';
 import '../mixins/index.dart';
 import '../models/event.dart';
 import '../models/rewriter.dart';
-import '../services/map.dart';
 
 class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FlowF<T> {
   EventsCtrl({
@@ -16,6 +13,8 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FlowF<T> {
   }) {
     if (extend case FractalCtrl ext) ext.sub.add(this);
   }
+
+  var transformers = <String, T Function(T, Rewritable)>{};
 
   @override
   final icon = IconF(0xe22d);
@@ -35,6 +34,7 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FlowF<T> {
     if (extend case EventsCtrl ext) {
       return [...ext.hashData(m), ...immutableData(m)];
     }
+
     return [[], 0, ...immutableData(m), name];
   }
 
@@ -60,12 +60,36 @@ class EventsCtrl<T extends EventFractal> extends FractalCtrl<T> with FlowF<T> {
   Future<T> put(MP item) async {
     //final ctrl = FractalCtrl.map[item['name']] as EventsCtrl;
     item = {
-      'hash': Hashed.make(hashData(item)),
       ...item,
     };
 
+    if (!item.containsKey('hash')) {
+      item['hash'] = Hashed.make(hashData(item));
+    }
+
     final evf = EventFractal.map[item['hash']] as T?;
-    return evf ?? make(item);
+
+    if (evf != null) return evf;
+
+    if (item['created_at'] == 0) {
+      print('zero_created');
+      print(item);
+      if (item['sync_at'] case int syncAt when syncAt > 0) {
+        return await make(item);
+      }
+
+      final res = await select(
+        where: {'hash': item['hash']},
+      );
+
+      if (res.isNotEmpty) {
+        return make(res[0]);
+      }
+
+      return make(item);
+    }
+
+    return evf ?? await make(item);
   }
 
   /*

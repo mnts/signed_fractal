@@ -27,12 +27,12 @@ mixin InteractiveFractal on EventFractal {
     if (f.own) {
       _myInteraction = f;
     }
-    */
 
     f.ownerC.future.then((owner) {
       if (owner == null) return;
       interactions.complete(owner.hash, f);
     });
+    */
   }
 
   InteractionFractal get myInteraction {
@@ -71,7 +71,7 @@ class InteractionFractal extends NodeFractal {
   InteractionCtrl get ctrl => controller;
 
   @override
-  List get hashData => [0, pubkey, toHash ?? to?.hash ?? '', type];
+  List get hashData => [0, pubkey, to?.ref ?? '', type];
 
   InteractionFractal({
     super.to,

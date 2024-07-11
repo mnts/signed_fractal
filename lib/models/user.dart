@@ -47,10 +47,7 @@ class UserFractal extends NodeFractal with SigningMix {
 
     activeHash = await DBF.main.getVar('active') ?? '';
     if (activeHash.isNotEmpty) {
-      CatalogFractal(
-        filter: {'hash': activeHash},
-        source: UserFractal.controller,
-      );
+      NetworkFractal.request(activeHash);
     }
   }
 
@@ -63,7 +60,9 @@ class UserFractal extends NodeFractal with SigningMix {
   String? eth;
   String? pass;
 
-  static final flow = TypeFilter<UserFractal>(NodeFractal.flow);
+  static final flow = TypeFilter<UserFractal>(
+    NodeFractal.flow,
+  );
 
 /*
   static FutureOr<UserFractal?> byName(String name) async {
