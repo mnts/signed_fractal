@@ -6,7 +6,7 @@ To create a compelling README file for the GitHub project and make it appealing 
 
 **Welcome to Fractal Bond**—an innovative platform designed to push the boundaries of decentralized, AI-driven systems. Our goal is to build a programmable economy that leverages cutting-edge technologies to empower users and promote a distributed, open-source future.
 
-![Fractal Bond UI](https://path_to_image)
+![Fractal Bond UI]
 
 ## **Features**
 
